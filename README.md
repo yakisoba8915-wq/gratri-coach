@@ -56,6 +56,8 @@ Supabaseへの読み書きが失敗した場合に備えてlocalStorageフォー
 - 既存環境では `supabase/offtraining-multiselect-migration.sql` を実行すると、旧文字列データを保持したまま配列形式へ移行できます。
 - `supabase/offtraining-plan.sql` をSupabase SQL Editorで実行してから利用してください。
 - 生成処理は `lib/offTrainingPlanner.ts` に分離してあり、将来的にAI APIへ置き換え可能です。
+- オフトレ診断は「もう一度診断する」から何度でもやり直せます。
+- 再診断で保存すると、現在の回答とプランを `user_id` 基準のupsertで上書き更新します。
 
 ## データ層
 
