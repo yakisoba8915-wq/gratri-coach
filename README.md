@@ -52,6 +52,8 @@ Supabaseへの読み書きが失敗した場合に備えてlocalStorageフォー
 - ログイン後、初めてオフトレタブを開くと最大10問の対話形式診断を表示します。
 - 回答は `offtraining_preferences`、生成プランは `offtraining_plans` にユーザー単位で保存します。
 - 器具、場所、伸ばしたい能力、身体の不安、強度などからルールベースで週間プランを生成します。
+- 器具、場所、能力、目標技、不安部位は複数選択に対応し、回答をSupabaseの `text[]` として保存します。
+- 既存環境では `supabase/offtraining-multiselect-migration.sql` を実行すると、旧文字列データを保持したまま配列形式へ移行できます。
 - `supabase/offtraining-plan.sql` をSupabase SQL Editorで実行してから利用してください。
 - 生成処理は `lib/offTrainingPlanner.ts` に分離してあり、将来的にAI APIへ置き換え可能です。
 
@@ -67,5 +69,6 @@ Supabaseへの読み書きが失敗した場合に備えてlocalStorageフォー
 - DBスキーマ: `supabase/schema.sql`
 - Auth移行SQL: `supabase/auth-migration.sql`
 - オフトレプランSQL: `supabase/offtraining-plan.sql`
+- オフトレ複数選択移行SQL: `supabase/offtraining-multiselect-migration.sql`
 
 UIは `lib/storage.ts` のデータリポジトリだけを参照するため、保存先の詳細から分離されています。
