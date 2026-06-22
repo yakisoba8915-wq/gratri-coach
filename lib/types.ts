@@ -19,5 +19,5 @@ export interface PracticeLog {
 }
 export interface Training { id: string; name: string; category: TrainingCategory; description: string; relatedTrickIds: string[]; minutes: number; }
 export interface Goal { id: string; season: string; type: GoalType; trickId: string; targetRate?: number; completed: boolean; }
-export interface Profile { displayName: string; stance: Stance; }
+export interface Profile { displayName: string; stance: Stance | ""; }
 export interface Recommendation { trick: Trick; reason: string; score: number; }
