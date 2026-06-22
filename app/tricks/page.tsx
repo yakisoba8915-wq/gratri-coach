@@ -4,13 +4,13 @@ import { Grid2X2, List, Search, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import TrickList from "@/components/TrickList";
-import { useLocalData } from "@/hooks/useLocalData";
+import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { initialTricks } from "@/lib/mockData";
-import { localData } from "@/lib/storage";
+import { dataRepository } from "@/lib/storage";
 import { masteryStatuses } from "@/lib/types";
 
 export default function TricksPage() {
-  const [stored] = useLocalData(localData.getTricks); const tricks = stored ?? initialTricks;
+  const [stored] = useSupabaseData(dataRepository.getTricks); const tricks = stored ?? initialTricks;
   const [query,setQuery] = useState(""); const [category,setCategory] = useState("all"); const [difficulty,setDifficulty] = useState("all");
   const [status,setStatus] = useState("all"); const [favorites,setFavorites] = useState(false); const [view,setView] = useState<"card"|"list">("card");
   const categories = [...new Set(tricks.map((t) => t.category))];

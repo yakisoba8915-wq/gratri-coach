@@ -1,17 +1,37 @@
 "use client";
 
-import { initialGoals, initialPracticeLogs, initialProfile, initialTricks } from "./mockData";
-import type { Goal, PracticeLog, Profile, Trick } from "./types";
+import { getCurrentUser } from "./auth";
+import { initialGoals,initialPracticeLogs,initialProfile,initialTricks } from "./mockData";
+import { isSupabaseConfigured,supabase } from "./supabase";
+import type { Goal,PracticeLog,Profile,Trick } from "./types";
 
-const keys = { tricks:"gratri-tricks", logs:"gratri-logs", goals:"gratri-goals", profile:"gratri-profile" } as const;
-function read<T>(key: string, fallback: T): T { if (typeof window === "undefined") return fallback; try { const value = localStorage.getItem(key); return value ? JSON.parse(value) as T : fallback; } catch { return fallback; } }
-function write<T>(key: string, value: T): void { localStorage.setItem(key, JSON.stringify(value)); window.dispatchEvent(new Event("gratri-storage")); }
+const baseKeys={tricks:"gratri-tricks",logs:"gratri-logs",goals:"gratri-goals",profile:"gratri-profile"} as const;
+type DataKey=keyof typeof baseKeys;
+interface PracticeLogRow {id:string;user_id:string;date:string;resort_name:string;trick_id:string;success_count:number;fail_count:number;memo:string;self_analysis:string;weak_point:string;next_task:string;snow_condition:PracticeLog["snowCondition"];video_urls:string[];}
+interface GoalRow {id:string;user_id:string;season:string;type:Goal["type"];trick_id:string;target_rate:number|null;completed:boolean;}
+interface ProfileRow {id:string;user_id:string;display_name:string;stance:Profile["stance"];trick_preferences:Record<string,Pick<Trick,"masteryStatus"|"favorite">>|null;}
 
-export const localData = {
-  getTricks: () => read<Trick[]>(keys.tricks, initialTricks), saveTricks: (v: Trick[]) => write(keys.tricks, v),
-  getLogs: () => read<PracticeLog[]>(keys.logs, initialPracticeLogs), saveLogs: (v: PracticeLog[]) => write(keys.logs, v),
-  getGoals: () => read<Goal[]>(keys.goals, initialGoals), saveGoals: (v: Goal[]) => write(keys.goals, v),
-  getProfile: () => read<Profile>(keys.profile, initialProfile), saveProfile: (v: Profile) => write(keys.profile, v)
+const localKey=(key:DataKey,userId?:string)=>userId?`${baseKeys[key]}:${userId}`:baseKeys[key];
+function readLocal<T>(key:DataKey,fallback:T,userId?:string):T{if(typeof window==="undefined")return fallback;try{const value=localStorage.getItem(localKey(key,userId));return value?JSON.parse(value) as T:fallback;}catch{return fallback;}}
+function writeLocal<T>(key:DataKey,value:T,userId?:string,notify=true):void{if(typeof window==="undefined")return;localStorage.setItem(localKey(key,userId),JSON.stringify(value));if(notify)window.dispatchEvent(new Event("gratri-storage"));}
+function reportFallback(operation:string,error:unknown):void{console.warn(`[Gratri Coach] Supabase ${operation} failed. localStorage fallback is active.`,error);}
+async function userIdOrNull():Promise<string|null>{if(!isSupabaseConfigured||!supabase)return null;try{return(await getCurrentUser())?.id??null;}catch(error){reportFallback("auth",error);return null;}}
+const trickPreferences=(tricks:Trick[])=>Object.fromEntries(tricks.map(({id,masteryStatus,favorite})=>[id,{masteryStatus,favorite}]));
+const toLogRow=(log:PracticeLog,userId:string):PracticeLogRow=>({id:log.id,user_id:userId,date:log.date,resort_name:log.resortName,trick_id:log.trickId,success_count:log.successCount,fail_count:log.failCount,memo:log.memo,self_analysis:log.selfAnalysis,weak_point:log.weakPoint,next_task:log.nextTask,snow_condition:log.snowCondition,video_urls:log.videoUrls});
+const fromLogRow=(row:PracticeLogRow):PracticeLog=>({id:row.id,date:row.date,resortName:row.resort_name,trickId:row.trick_id,successCount:row.success_count,failCount:row.fail_count,memo:row.memo,selfAnalysis:row.self_analysis,weakPoint:row.weak_point,nextTask:row.next_task,snowCondition:row.snow_condition,videoUrls:row.video_urls??[]});
+const toGoalRow=(goal:Goal,userId:string):GoalRow=>({id:goal.id,user_id:userId,season:goal.season,type:goal.type,trick_id:goal.trickId,target_rate:goal.targetRate??null,completed:goal.completed});
+const fromGoalRow=(row:GoalRow):Goal=>({id:row.id,season:row.season,type:row.type,trickId:row.trick_id,...(row.target_rate===null?{}:{targetRate:row.target_rate}),completed:row.completed});
+
+async function replacePracticeLogs(rows:PracticeLogRow[],userId:string):Promise<void>{if(!supabase)throw new Error("Supabase is not configured");const {error:deleteError}=await supabase.from("practice_logs").delete().eq("user_id",userId);if(deleteError)throw deleteError;if(rows.length){const {error}=await supabase.from("practice_logs").insert(rows);if(error)throw error;}}
+async function replaceGoals(rows:GoalRow[],userId:string):Promise<void>{if(!supabase)throw new Error("Supabase is not configured");const {error:deleteError}=await supabase.from("goals").delete().eq("user_id",userId);if(deleteError)throw deleteError;if(rows.length){const {error}=await supabase.from("goals").insert(rows);if(error)throw error;}}
+
+export const dataRepository={
+  async getTricks():Promise<Trick[]>{const userId=await userIdOrNull();const fallback=readLocal("tricks",initialTricks,userId??undefined);if(!userId||!supabase)return fallback;try{const {data,error}=await supabase.from("profiles").select("trick_preferences").eq("user_id",userId).maybeSingle();if(error)throw error;const preferences=(data?.trick_preferences??{}) as ProfileRow["trick_preferences"];const tricks=initialTricks.map((trick)=>({...trick,...preferences?.[trick.id]}));writeLocal("tricks",tricks,userId,false);return tricks;}catch(error){reportFallback("getTricks",error);return fallback;}},
+  async saveTricks(tricks:Trick[]):Promise<void>{const userId=await userIdOrNull();writeLocal("tricks",tricks,userId??undefined);if(!userId||!supabase)return;try{const profile=readLocal("profile",initialProfile,userId);const {error}=await supabase.from("profiles").upsert({id:userId,user_id:userId,display_name:profile.displayName,stance:profile.stance,trick_preferences:trickPreferences(tricks)},{onConflict:"user_id"});if(error)throw error;}catch(error){reportFallback("saveTricks",error);}},
+  async getLogs():Promise<PracticeLog[]>{const userId=await userIdOrNull();const fallback=readLocal("logs",initialPracticeLogs,userId??undefined);if(!userId||!supabase)return fallback;try{const {data,error}=await supabase.from("practice_logs").select("*").eq("user_id",userId).order("date",{ascending:false});if(error)throw error;const logs=(data as PracticeLogRow[]).map(fromLogRow);writeLocal("logs",logs,userId,false);return logs;}catch(error){reportFallback("getLogs",error);return fallback;}},
+  async saveLogs(logs:PracticeLog[]):Promise<void>{const userId=await userIdOrNull();writeLocal("logs",logs,userId??undefined);if(!userId)return;try{await replacePracticeLogs(logs.map((log)=>toLogRow(log,userId)),userId);}catch(error){reportFallback("saveLogs",error);}},
+  async getGoals():Promise<Goal[]>{const userId=await userIdOrNull();const fallback=readLocal("goals",initialGoals,userId??undefined);if(!userId||!supabase)return fallback;try{const {data,error}=await supabase.from("goals").select("*").eq("user_id",userId).order("created_at",{ascending:true});if(error)throw error;const goals=(data as GoalRow[]).map(fromGoalRow);writeLocal("goals",goals,userId,false);return goals;}catch(error){reportFallback("getGoals",error);return fallback;}},
+  async saveGoals(goals:Goal[]):Promise<void>{const userId=await userIdOrNull();writeLocal("goals",goals,userId??undefined);if(!userId)return;try{await replaceGoals(goals.map((goal)=>toGoalRow(goal,userId)),userId);}catch(error){reportFallback("saveGoals",error);}},
+  async getProfile():Promise<Profile>{const userId=await userIdOrNull();const fallback=readLocal("profile",initialProfile,userId??undefined);if(!userId||!supabase)return fallback;try{const {data,error}=await supabase.from("profiles").select("display_name,stance").eq("user_id",userId).maybeSingle();if(error)throw error;if(!data)return fallback;const profile={displayName:data.display_name,stance:data.stance} as Profile;writeLocal("profile",profile,userId,false);return profile;}catch(error){reportFallback("getProfile",error);return fallback;}},
+  async saveProfile(profile:Profile):Promise<void>{const userId=await userIdOrNull();writeLocal("profile",profile,userId??undefined);if(!userId||!supabase)return;try{const tricks=readLocal("tricks",initialTricks,userId);const {error}=await supabase.from("profiles").upsert({id:userId,user_id:userId,display_name:profile.displayName,stance:profile.stance,trick_preferences:trickPreferences(tricks)},{onConflict:"user_id"});if(error)throw error;}catch(error){reportFallback("saveProfile",error);}}
 };
-
-// Supabase移行時は、このオブジェクトと同じ境界を持つ非同期repositoryへ置換する。

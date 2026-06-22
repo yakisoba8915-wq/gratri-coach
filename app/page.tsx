@@ -6,11 +6,11 @@ import SectionTitle from "@/components/SectionTitle";
 import TrickCard from "@/components/TrickCard";
 import { initialPracticeLogs, initialTricks } from "@/lib/mockData";
 import { getRecommendations, getTrendingTrick } from "@/lib/recommendations";
-import { localData } from "@/lib/storage";
-import { useLocalData } from "@/hooks/useLocalData";
+import { dataRepository } from "@/lib/storage";
+import { useSupabaseData } from "@/hooks/useSupabaseData";
 
 export default function HomePage() {
-  const [tricks] = useLocalData(localData.getTricks); const [logs] = useLocalData(localData.getLogs);
+  const [tricks] = useSupabaseData(dataRepository.getTricks); const [logs] = useSupabaseData(dataRepository.getLogs);
   const currentTricks = tricks ?? initialTricks; const currentLogs = logs ?? initialPracticeLogs;
   const recommendations = getRecommendations(currentTricks,currentLogs); const trending = getTrendingTrick(currentTricks,currentLogs);
   const nextTask = currentLogs[0]?.nextTask;
