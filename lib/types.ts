@@ -29,10 +29,13 @@ export interface OffTrainingPreferences {
   gymAvailable: string; focusAbility: string[]; targetTrickType: string[]; exerciseHabit: string;
   injuryConcern: string[]; intensity: OffTrainingIntensity;
 }
-export interface OffTrainingExercise {
-  name: string; category: TrainingCategory; prescription: string; caution: string; ability: string;
+export type Weekday = "月" | "火" | "水" | "木" | "金" | "土" | "日";
+export interface OffTrainingPlanItem {
+  name: string; category: TrainingCategory; amount: string; purpose: string; caution: string;
 }
-export interface OffTrainingDay { label: string; theme: string; exercises: OffTrainingExercise[]; }
+export interface WeeklyOffTrainingDay {
+  day: Weekday; title: string; focus: string[]; estimatedMinutes: number; items: OffTrainingPlanItem[];
+}
 export interface OffTrainingPlan {
-  id: string; title: string; description: string; weeklyDays: number; sessionMinutes: number; days: OffTrainingDay[];
+  id: string; title: string; description: string; weeklyDays: number; sessionMinutes: number; weeklyPlan: WeeklyOffTrainingDay[];
 }
