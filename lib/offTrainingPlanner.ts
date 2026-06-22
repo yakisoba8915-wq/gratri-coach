@@ -1,4 +1,5 @@
 import type { OffTrainingDayType,OffTrainingPlan,OffTrainingPlanItem,OffTrainingPreferences,TrainingCategory,Weekday,WeeklyOffTrainingDay } from "./types";
+import { getShibakatsuMenus } from "./shibakatsuMenu";
 
 type LegacyPreferences=Omit<OffTrainingPreferences,"equipment"|"location"|"focusAbility"|"targetTrickType"|"injuryConcern">&{equipment:string;location:string;focusAbility:string;targetTrickType:string;injuryConcern:string};
 interface Seed {name:string;category:TrainingCategory;base:string;purpose:string;jump?:boolean;backRisk?:boolean;caution?:string;}
@@ -8,12 +9,6 @@ const weekdays:Weekday[]=["月","火","水","木","金","土","日"];
 type ActiveType="shiba"|"strength";
 const schedules:Record<number,Partial<Record<Weekday,ActiveType>>>={1:{"土":"strength"},2:{"火":"shiba","土":"strength"},3:{"月":"shiba","水":"strength","土":"shiba"},4:{"月":"shiba","火":"strength","木":"shiba","土":"strength"}};
 
-const shibaWithEquipment:Seed[]=[
-  item("シバカツプレス練習","シバカツ","5分","プレス時の重心位置を覚える"),item("ノーズプレス姿勢","シバカツ","左右30秒","ノーズ側への荷重を安定させる"),
-  item("テールプレス姿勢","シバカツ","左右30秒","テール側への荷重を安定させる"),item("乗せ替え練習","シバカツ","10回","左右の重心移動を滑らかにする"),
-  item("オーリー動作確認","シバカツ","8回","弾く順番を身体に覚えさせる"),item("ノーリー動作確認","シバカツ","8回","前足側の弾きを整える"),
-  item("回転導入練習","シバカツ","左右8回","目線と肩の先行動作を整える"),item("着地姿勢確認","シバカツ","8回","低く安定した着地を身につける")
-];
 const shibaWithoutEquipment:Seed[]=[
   item("プレス姿勢キープ","シバカツ","左右30秒","プレス姿勢の軸を作る"),item("重心移動練習","シバカツ","左右10回","板を想定した荷重移動を覚える"),
   item("回転イメージジャンプ","シバカツ","左右6回","回転の導入と目線を整える",{jump:true}),item("片足バランス","筋トレ","左右30秒","プレスと着地の安定を高める"),
@@ -41,14 +36,7 @@ function prescription(seed:Seed,intensity:OffTrainingPreferences["intensity"],kn
   return `${seed.base} × ${sets}セット`;
 }
 function toPlanItems(seeds:Seed[],preferences:OffTrainingPreferences|LegacyPreferences,knee:boolean):OffTrainingPlanItem[]{return seeds.map((seed)=>({name:seed.name,category:seed.category,amount:prescription(seed,preferences.intensity,knee),purpose:seed.purpose,caution:seed.caution??(preferences.intensity==="軽め"?"余裕を残し、休憩を長めに取る":"痛みが出たら中止する")}));}
-function shibaPriorities(focus:string[],withEquipment:boolean):Seed[]{
-  const base=withEquipment?shibaWithEquipment:shibaWithoutEquipment;const names:string[]=[];
-  if(focus.includes("プレス安定"))names.push(...(withEquipment?["シバカツプレス練習","ノーズプレス姿勢","テールプレス姿勢","乗せ替え練習"]:["プレス姿勢キープ","重心移動練習","片足バランス"]));
-  if(focus.includes("弾き"))names.push(withEquipment?"オーリー動作確認":"着地姿勢確認");
-  if(focus.includes("回転力"))names.push(withEquipment?"回転導入練習":"回転イメージジャンプ");
-  if(focus.includes("着地安定"))names.push("着地姿勢確認","片足バランス");
-  return unique([...names.map((name)=>base.find((seed)=>seed.name===name)).filter((seed):seed is Seed=>Boolean(seed)),...base]);
-}
+function imageTrainingPriorities(focus:string[]):Seed[]{const names:string[]=[];if(focus.includes("プレス安定"))names.push("プレス姿勢キープ","重心移動練習","片足バランス");if(focus.includes("回転力"))names.push("回転イメージジャンプ");if(focus.includes("着地安定"))names.push("着地姿勢確認","片足バランス");return unique([...names.map((name)=>shibaWithoutEquipment.find((seed)=>seed.name===name)).filter((seed):seed is Seed=>Boolean(seed)),...shibaWithoutEquipment]);}
 function strengthPriorities(focus:string[],injuries:string[],intensity:OffTrainingPreferences["intensity"]):{strength:Seed[];flexibility:Seed[]}{
   const names:string[]=[];const flexNames:string[]=[];
   if(focus.includes("弾き"))names.push("ジャンプスクワット","スクワット","ボックスジャンプ");
@@ -66,18 +54,19 @@ function strengthPriorities(focus:string[],injuries:string[],intensity:OffTraini
 
 export function generateOffTrainingPlan(preferences:OffTrainingPreferences|LegacyPreferences,userId:string):OffTrainingPlan{
   const equipment=list(preferences.equipment),locations=list(preferences.location),focus=list(preferences.focusAbility),targets=list(preferences.targetTrickType),injuries=list(preferences.injuryConcern);
-  const withEquipment=equipment.some((value)=>["シバカツボードを持っている","トリックスノーを持っている","その他の練習器具を持っている"].includes(value));
+  const hasShibakatsu=equipment.includes("シバカツボードを持っている");
   const knee=injuries.includes("膝")||injuries.includes("複数ある");const schedule=schedules[Math.min(preferences.weeklyDays,4)]??schedules[4];
   const shibaCount=preferences.sessionMinutes<=15?3:preferences.sessionMinutes<=30?4:preferences.sessionMinutes<=45?5:6;
   const strengthCount=preferences.sessionMinutes<=15?2:preferences.sessionMinutes<=30?3:preferences.sessionMinutes<=45?4:5;
   const flexCount=preferences.sessionMinutes<=15?1:preferences.sessionMinutes<=30?2:3;
-  const shibaPool=shibaPriorities(focus,withEquipment).filter((seed)=>!(knee&&seed.jump));const strengthPools=strengthPriorities(focus,injuries,preferences.intensity);
+  const imageTrainingPool=imageTrainingPriorities(focus).filter((seed)=>!(knee&&seed.jump));const strengthPools=strengthPriorities(focus,injuries,preferences.intensity);
   if(locations.includes("家"))strengthPools.strength=prioritize(strengthPools.strength,["プランク","ロシアンツイスト","ジャンプスクワット","片足スクワット"]);
   if(locations.includes("公園"))strengthPools.strength=prioritize(strengthPools.strength,["ジャンプスクワット","片足スクワット","片足バランス"]);
   if(locations.includes("ジム")&&preferences.gymAvailable!=="使えない")strengthPools.strength=prioritize(strengthPools.strength,["スクワット","ブルガリアンスクワット","RDL","ボックスジャンプ"]);
   const weeklyPlan:WeeklyOffTrainingDay[]=weekdays.map((day)=>{
     const activeType=schedule[day];if(!activeType)return {day,dayType:"休み",title:"休養日",focus:[],estimatedMinutes:0,items:[]};
-    if(activeType==="shiba"){const dayType:OffTrainingDayType=withEquipment?"シバカツの日":"板操作イメージトレーニングの日";return {day,dayType,title:dayType,focus,estimatedMinutes:preferences.sessionMinutes,items:toPlanItems(shibaPool.slice(0,shibaCount),preferences,knee)};}
+    if(activeType==="shiba"&&hasShibakatsu){const dayType:OffTrainingDayType="シバカツの日";const items:OffTrainingPlanItem[]=getShibakatsuMenus({focusAbilities:focus,targetTrickTypes:targets,limit:shibaCount}).map(({menu})=>({name:menu.name,category:"シバカツ",amount:menu.duration,purpose:menu.purpose,caution:"安全なスペースを確保してシバカツボードで行う"}));return {day,dayType,title:"シバカツ専用練習日",focus,estimatedMinutes:preferences.sessionMinutes,items};}
+    if(activeType==="shiba"){const dayType:OffTrainingDayType="板操作イメージトレーニングの日";return {day,dayType,title:dayType,focus,estimatedMinutes:preferences.sessionMinutes,items:toPlanItems(imageTrainingPool.slice(0,shibaCount),preferences,knee)};}
     const selected=[...strengthPools.strength.slice(0,strengthCount),...strengthPools.flexibility.slice(0,flexCount)];return {day,dayType:"筋トレ＋柔軟の日",title:focus.includes("体力")?"サーキット＋リカバリーDay":"筋力＋モビリティDay",focus,estimatedMinutes:preferences.sessionMinutes,items:toPlanItems(selected,preferences,knee)};
   });
   return {id:`off-plan-${userId}`,title:`${focus.join("・")} × ${targets.join("・")} オフトレプラン`,description:`シバカツ系と筋トレ＋柔軟を分けた、週${preferences.weeklyDays}日・1回${preferences.sessionMinutes}分の週間プランです。`,weeklyDays:preferences.weeklyDays,sessionMinutes:preferences.sessionMinutes,weeklyPlan};
