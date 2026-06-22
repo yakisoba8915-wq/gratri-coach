@@ -21,3 +21,18 @@ export interface Training { id: string; name: string; category: TrainingCategory
 export interface Goal { id: string; season: string; type: GoalType; trickId: string; targetRate?: number; completed: boolean; }
 export interface Profile { displayName: string; stance: Stance | ""; }
 export interface Recommendation { trick: Trick; reason: string; score: number; }
+
+export type OffTrainingEquipment = "シバカツボードを持っている" | "トリックスノーを持っている" | "どちらも持っていない" | "これから購入予定";
+export type OffTrainingIntensity = "軽め" | "普通" | "きつめ";
+export interface OffTrainingPreferences {
+  equipment: OffTrainingEquipment; weeklyDays: number; sessionMinutes: number; location: string;
+  gymAvailable: string; focusAbility: string; targetTrickType: string; exerciseHabit: string;
+  injuryConcern: string; intensity: OffTrainingIntensity;
+}
+export interface OffTrainingExercise {
+  name: string; category: TrainingCategory; prescription: string; caution: string; ability: string;
+}
+export interface OffTrainingDay { label: string; theme: string; exercises: OffTrainingExercise[]; }
+export interface OffTrainingPlan {
+  id: string; title: string; description: string; weeklyDays: number; sessionMinutes: number; days: OffTrainingDay[];
+}

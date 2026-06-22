@@ -47,6 +47,14 @@ Supabaseへの読み書きが失敗した場合に備えてlocalStorageフォー
 - 練習記録、目標管理、プロフィール保存はGoogleログイン後に利用できます。
 - 未ログイン時はモックデータや過去のゲスト用localStorageデータを表示しません。
 
+## オフトレ診断
+
+- ログイン後、初めてオフトレタブを開くと最大10問の対話形式診断を表示します。
+- 回答は `offtraining_preferences`、生成プランは `offtraining_plans` にユーザー単位で保存します。
+- 器具、場所、伸ばしたい能力、身体の不安、強度などからルールベースで週間プランを生成します。
+- `supabase/offtraining-plan.sql` をSupabase SQL Editorで実行してから利用してください。
+- 生成処理は `lib/offTrainingPlanner.ts` に分離してあり、将来的にAI APIへ置き換え可能です。
+
 ## データ層
 
 - 型: `lib/types.ts`
@@ -58,5 +66,6 @@ Supabaseへの読み書きが失敗した場合に備えてlocalStorageフォー
 - Supabase/localStorageリポジトリ: `lib/storage.ts`
 - DBスキーマ: `supabase/schema.sql`
 - Auth移行SQL: `supabase/auth-migration.sql`
+- オフトレプランSQL: `supabase/offtraining-plan.sql`
 
 UIは `lib/storage.ts` のデータリポジトリだけを参照するため、保存先の詳細から分離されています。
