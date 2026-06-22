@@ -3,7 +3,7 @@
 import { getCurrentUser } from "./auth";
 import { initialGoals,initialPracticeLogs,initialProfile,initialTricks } from "./mockData";
 import { isSupabaseConfigured,supabase } from "./supabase";
-import type { Goal,OffTrainingPlan,OffTrainingPlanItem,OffTrainingPreferences,PracticeLog,Profile,Trick,Weekday,WeeklyOffTrainingDay } from "./types";
+import type { Goal,OffTrainingDayType,OffTrainingPlan,OffTrainingPlanItem,OffTrainingPreferences,PracticeLog,Profile,Trick,Weekday,WeeklyOffTrainingDay } from "./types";
 
 const baseKeys={tricks:"gratri-tricks",logs:"gratri-logs",goals:"gratri-goals",profile:"gratri-profile",offPlan:"gratri-offtraining-plan",offPreferences:"gratri-offtraining-preferences"} as const;
 type DataKey=keyof typeof baseKeys;
@@ -26,9 +26,9 @@ const weekOrder:Weekday[]=["月","火","水","木","金","土","日"];
 const legacyDays:Record<number,Weekday[]>={1:["土"],2:["火","土"],3:["月","水","土"],4:["月","火","木","土"]};
 const record=(value:unknown):value is Record<string,unknown>=>typeof value==="object"&&value!==null;
 function normalizeWeeklyPlan(value:unknown,weeklyDays:number,sessionMinutes:number):WeeklyOffTrainingDay[]{
-  if(Array.isArray(value)&&value.every((item)=>record(item)&&typeof item.day==="string"&&Array.isArray(item.items)))return value as WeeklyOffTrainingDay[];
+  if(Array.isArray(value)&&value.every((item)=>record(item)&&typeof item.day==="string"&&Array.isArray(item.items))){return weekOrder.map((day)=>{const source=value.find((item)=>record(item)&&item.day===day);if(!record(source))return {day,dayType:"休み",title:"休養日",focus:[],estimatedMinutes:0,items:[]};const items=source.items as OffTrainingPlanItem[];const storedType=source.dayType;const dayType:OffTrainingDayType=storedType==="シバカツの日"||storedType==="板操作イメージトレーニングの日"||storedType==="筋トレ＋柔軟の日"||storedType==="休み"?storedType:items.length===0?"休み":items.some((item)=>item.category==="シバカツ")?"シバカツの日":"筋トレ＋柔軟の日";return {day,dayType,title:String(source.title??dayType),focus:Array.isArray(source.focus)?source.focus.map(String):[],estimatedMinutes:Number(source.estimatedMinutes??(items.length?sessionMinutes:0)),items};});}
   const oldDays=Array.isArray(value)?value:[];const active=legacyDays[Math.min(weeklyDays,4)]??legacyDays[4];
-  return weekOrder.map((day)=>{const index=active.indexOf(day);if(index<0)return {day,title:"休養日",focus:[],estimatedMinutes:0,items:[]};const old=record(oldDays[index])?oldDays[index]:{};const exercises=Array.isArray(old.exercises)?old.exercises:[];const items:OffTrainingPlanItem[]=exercises.filter(record).map((item)=>({name:String(item.name??"オフトレ"),category:item.category==="シバカツ"||item.category==="柔軟"?item.category:"筋トレ",amount:String(item.prescription??"自分のペースで"),purpose:String(item.ability??"基礎能力を高める"),caution:String(item.caution??"痛みが出たら中止する")}));return {day,title:String(old.theme??"オフトレDay"),focus:[],estimatedMinutes:items.length?sessionMinutes:0,items};});
+  return weekOrder.map((day)=>{const index=active.indexOf(day);if(index<0)return {day,dayType:"休み",title:"休養日",focus:[],estimatedMinutes:0,items:[]};const old=record(oldDays[index])?oldDays[index]:{};const exercises=Array.isArray(old.exercises)?old.exercises:[];const items:OffTrainingPlanItem[]=exercises.filter(record).map((item)=>({name:String(item.name??"オフトレ"),category:item.category==="シバカツ"||item.category==="柔軟"?item.category:"筋トレ",amount:String(item.prescription??"自分のペースで"),purpose:String(item.ability??"基礎能力を高める"),caution:String(item.caution??"痛みが出たら中止する")}));const dayType:OffTrainingDayType=items.some((item)=>item.category==="シバカツ")?"シバカツの日":"筋トレ＋柔軟の日";return {day,dayType,title:String(old.theme??dayType),focus:[],estimatedMinutes:items.length?sessionMinutes:0,items};});
 }
 function normalizeStoredPlan(value:unknown):OffTrainingPlan|null{if(!record(value))return null;const weeklyDays=Number(value.weeklyDays??0),sessionMinutes=Number(value.sessionMinutes??0);if(!weeklyDays||!sessionMinutes)return null;return {id:String(value.id??"cached-off-plan"),title:String(value.title??"オフトレプラン"),description:String(value.description??""),weeklyDays,sessionMinutes,weeklyPlan:normalizeWeeklyPlan(value.weeklyPlan??value.days,weeklyDays,sessionMinutes)};}
 

@@ -30,11 +30,12 @@ export interface OffTrainingPreferences {
   injuryConcern: string[]; intensity: OffTrainingIntensity;
 }
 export type Weekday = "月" | "火" | "水" | "木" | "金" | "土" | "日";
+export type OffTrainingDayType = "シバカツの日" | "板操作イメージトレーニングの日" | "筋トレ＋柔軟の日" | "休み";
 export interface OffTrainingPlanItem {
   name: string; category: TrainingCategory; amount: string; purpose: string; caution: string;
 }
 export interface WeeklyOffTrainingDay {
-  day: Weekday; title: string; focus: string[]; estimatedMinutes: number; items: OffTrainingPlanItem[];
+  day: Weekday; dayType: OffTrainingDayType; title: string; focus: string[]; estimatedMinutes: number; items: OffTrainingPlanItem[];
 }
 export interface OffTrainingPlan {
   id: string; title: string; description: string; weeklyDays: number; sessionMinutes: number; weeklyPlan: WeeklyOffTrainingDay[];
