@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { BrainCircuit, GitCompareArrows, ImageIcon, Loader2, PlayCircle, Sparkles, Trash2 } from "lucide-react";
 import { applyAiVideoAnalysisToNextTask, applyAiVideoAnalysisToPracticeMenu, generatePracticeMenuUpdateFromAnalysis } from "@/lib/aiAdviceActions";
+import { saveAiCoachMessage } from "@/lib/aiCoachMemory";
 import type { AiPracticeMenuUpdate, PracticeLog, PracticeVideo, PracticeVideoFrame, Trick, VideoAnalysisComparison, VideoAnalysisResult } from "@/lib/types";
 import { compareVideoAnalysisResults, getVideoAnalysisResultsByTrickId, getVideoAnalysisResultsByVideoId, saveVideoAnalysisResult } from "@/lib/videoAnalysisStorage";
 import { extractFramesFromVideo, saveVideoFrameMetadata, uploadVideoFrame } from "@/lib/videoFrameExtractor";
@@ -219,6 +220,14 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
       try {
         const savedResult = await saveVideoAnalysisResult({ practiceVideoId: video.id, practiceLogId, trickId: log.trickId, result });
         setAnalysisResultIdByVideoId((current) => ({ ...current, [video.id]: savedResult.id }));
+        await saveAiCoachMessage({
+          role: "assistant",
+          sourceType: "video_analysis",
+          message: `AI動画解析: ${result.summary}\n課題: ${result.likelyIssues.join(" / ")}\n改善: ${result.improvementPoints.join(" / ")}\n次回: ${result.nextPractice.join(" / ")}`,
+          relatedPracticeLogId: practiceLogId,
+          relatedVideoId: video.id,
+          relatedAnalysisResultId: savedResult.id,
+        });
         const history = await getVideoAnalysisResultsByTrickId(log.trickId);
         const previousResults = history.filter((item) => item.id !== savedResult.id && item.practiceVideoId !== video.id);
         setComparisonByVideoId((current) => ({ ...current, [video.id]: compareVideoAnalysisResults(result, previousResults) }));
@@ -251,6 +260,14 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
         analysisResultId,
         analysis,
       });
+      await saveAiCoachMessage({
+        role: "system",
+        sourceType: "training_plan",
+        message: `AI動画解析結果を次回課題とオフトレ週間プランに反映しました。次回課題: ${generatePracticeMenuUpdateFromAnalysis(analysis).nextTask}`,
+        relatedPracticeLogId: practiceLogId,
+        relatedVideoId: videoId,
+        relatedAnalysisResultId: analysisResultId,
+      });
       setAppliedVideoIds((current) => new Set(current).add(videoId));
     } catch {
       setError("AI解析結果の練習メニュー反映に失敗しました。SupabaseのSQL設定を確認してください。");
@@ -274,6 +291,14 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
         practiceVideoId: videoId,
         analysisResultId,
         analysis,
+      });
+      await saveAiCoachMessage({
+        role: "system",
+        sourceType: "training_plan",
+        message: `AI動画解析結果を次回課題に反映しました。次回課題: ${generatePracticeMenuUpdateFromAnalysis(analysis).nextTask}`,
+        relatedPracticeLogId: practiceLogId,
+        relatedVideoId: videoId,
+        relatedAnalysisResultId: analysisResultId,
       });
       setNextTaskAppliedVideoIds((current) => new Set(current).add(videoId));
     } catch {

@@ -239,3 +239,23 @@ export async function applyAiVideoAnalysisToNextTask(params: ApplyAiVideoAnalysi
   if (typeof window !== "undefined") window.dispatchEvent(new Event("gratri-storage"));
   return update;
 }
+
+export async function getRecentAiAdviceActions(limit = 8): Promise<AiAdviceAction[]> {
+  if (!supabase) return [];
+  const user = await getCurrentUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("ai_advice_actions")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.warn("[Gratri Coach] Failed to load AI advice actions.", error);
+    return [];
+  }
+
+  return (data as AiAdviceActionRow[]).map(fromActionRow);
+}

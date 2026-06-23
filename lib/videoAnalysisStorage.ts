@@ -118,6 +118,26 @@ export async function getVideoAnalysisResultsByTrickId(trickId: string): Promise
   return (data as PracticeVideoAnalysisResultRow[]).map(fromRow);
 }
 
+export async function getRecentVideoAnalysisResults(limit = 8): Promise<PracticeVideoAnalysisResult[]> {
+  if (!supabase) return [];
+  const user = await getCurrentUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("practice_video_analysis_results")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.warn("[Gratri Coach] Failed to load recent video analysis results.", error);
+    return [];
+  }
+
+  return (data as PracticeVideoAnalysisResultRow[]).map(fromRow);
+}
+
 function unique(items: string[]): string[] {
   return Array.from(new Set(items.map((item) => item.trim()).filter(Boolean)));
 }

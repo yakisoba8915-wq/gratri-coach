@@ -46,6 +46,12 @@ export interface AiAdviceAction {
 export interface AiPracticeMenuUpdate {
   nextTask: string; recommendedTricks: string[]; shibakatsuItems: OffTrainingPlanItem[]; strengthFlexItems: OffTrainingPlanItem[];
 }
+export type AiCoachRole = "user" | "assistant" | "system";
+export type AiCoachSourceType = "chat" | "advice" | "video_analysis" | "training_plan";
+export interface AiCoachMessage {
+  id: string; userId: string; role: AiCoachRole; message: string; sourceType: AiCoachSourceType;
+  relatedPracticeLogId?: string | null; relatedVideoId?: string | null; relatedAnalysisResultId?: string | null; createdAt: string;
+}
 export interface Training { id: string; name: string; category: TrainingCategory; description: string; relatedTrickIds: string[]; minutes: number; }
 export interface Goal { id: string; season: string; type: GoalType; trickId: string; targetRate?: number; completed: boolean; }
 export interface Profile { displayName: string; stance: Stance | ""; avatarUrl?: string | null; avatarPath?: string | null; }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Bot, ChevronRight, Loader2, Sparkles, TrendingDown, Video } from "lucide-react";
 import { useState } from "react";
 import { generateAiAdvice, type AIAdvice, type GenerateAdviceParams, type OpenAiAdvice } from "@/lib/aiAdvisor";
+import { saveAiCoachMessage } from "@/lib/aiCoachMemory";
 
 type AIAdviceCardProps = GenerateAdviceParams & {
   advice: AIAdvice;
@@ -26,7 +27,13 @@ export default function AIAdviceCard({ advice, tricks, logs, videos = [], goals,
     setLoading(true);
     setError("");
     try {
-      setAiAdvice(await generateAiAdvice({ tricks, logs, videos, goals, profile, offTrainingPlan }));
+      const nextAdvice = await generateAiAdvice({ tricks, logs, videos, goals, profile, offTrainingPlan });
+      setAiAdvice(nextAdvice);
+      await saveAiCoachMessage({
+        role: "assistant",
+        sourceType: "advice",
+        message: `AI練習アドバイス: ${nextAdvice.summary}\n次回練習: ${nextAdvice.nextPracticeMenu.join(" / ")}\nオフトレ: ${nextAdvice.offTrainingAdvice.join(" / ")}`,
+      });
     } catch {
       setError("AIアドバイスの生成に失敗しました。ルールベース分析を表示しています。");
     } finally {

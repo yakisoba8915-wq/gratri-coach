@@ -169,3 +169,13 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - オフトレ週間プランでは、シバカツの日にシバカツ補強、筋トレ＋柔軟の日に筋トレ・柔軟補強を追加します。
 - 反映履歴は `ai_advice_actions` テーブルに保存します。SQL Editorで `supabase/ai-advice-actions.sql` を実行してください。
 - `ai_advice_actions` は `user_id` によるRLSで、自分の反映履歴だけ select / insert / update / delete できます。
+
+## AIコーチ履歴保存・文脈参照
+
+- AI対話タブのユーザー発言とAI回答を `ai_coach_messages` テーブルに保存します。
+- SQL Editorで `supabase/ai-coach-memory.sql` を実行してください。
+- AI対話画面を開くと、保存済みのチャット履歴を取得して再表示します。
+- AI回答時には、過去の相談内容、最近の練習記録、苦手技、動画解析結果、オフトレ反映履歴を一部コンテキストとして渡します。
+- AI練習アドバイス、AI動画解析結果、練習メニュー反映履歴もAIコーチ履歴として保存し、次回以降の回答で参照できるようにしています。
+- AI対話画面の「履歴をリセット」から、確認後にAIコーチ履歴を削除できます。
+- `ai_coach_messages` は `user_id` によるRLSで、自分のAI履歴だけ select / insert / update / delete できます。
