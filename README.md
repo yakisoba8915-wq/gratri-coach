@@ -91,6 +91,8 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - 動画は練習記録に複数紐づけできます。
 - 未ログイン時は動画アップロードできません。
 - 現時点では動画の保存・再生のみで、AI動画解析は未実装です。
+- アップロードUIは `components/PracticeVideoUploader.tsx`、動画一覧・再生・削除UIは `components/PracticeVideoList.tsx` に分離しています。
+- 動画ファイルは `practice-videos/{user_id}/{practice_log_id}/...` に保存し、メタデータは `practice_videos` に保存します。
 ## 練習記録タイプ
 
 - 練習記録は「ゲレンデでの滑走」と「シバカツ練習」に分けて保存できます。

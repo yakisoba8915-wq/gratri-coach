@@ -1,25 +1,25 @@
 "use client";
 
-import { Plus, Save, Trash2, UploadCloud } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
 import { snowConditions, type PracticeLog, type SnowCondition, type TrainingType } from "@/lib/types";
-import { uploadPracticeVideo } from "@/lib/videoStorage";
+import PracticeVideoUploader, { type PracticeVideoUploaderHandle } from "@/components/PracticeVideoUploader";
 
-const maxVideoSizeMb = 100;
-const allowedVideoExtensions = ".mp4,.mov,.webm";
 const shibakatsuMenus = ["プレス練習", "ノーズプレス姿勢", "テールプレス姿勢", "乗せ替え練習", "オーリー動作確認", "ノーリー動作確認", "回転導入練習", "着地姿勢確認"];
 
 export default function PracticeForm() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const videoUploaderRef = useRef<PracticeVideoUploaderHandle>(null);
   const [storedTricks] = useSupabaseData(dataRepository.getTricks);
   const tricks = storedTricks ?? initialTricks;
+  const [logId] = useState(() => `log-${Date.now()}`);
 
   const [trainingType, setTrainingType] = useState<TrainingType>("snow");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -37,31 +37,12 @@ export default function PracticeForm() {
   const [weakPoint, setWeakPoint] = useState("");
   const [nextTask, setNextTask] = useState("");
   const [videoUrls, setVideoUrls] = useState<string[]>([""]);
-  const [videoFiles, setVideoFiles] = useState<File[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploadedCount, setUploadedCount] = useState(0);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [videoError, setVideoError] = useState("");
-
-  const totalUploadSize = useMemo(() => videoFiles.reduce((sum, file) => sum + file.size, 0), [videoFiles]);
-
-  function addFiles(files: FileList | null): void {
-    if (!files) return;
-    setVideoError("");
-    const nextFiles = Array.from(files);
-    const invalid = nextFiles.find((file) => file.size > maxVideoSizeMb * 1024 * 1024);
-    if (invalid) {
-      setVideoError(`${invalid.name} は100MBを超えています。`);
-      return;
-    }
-    setVideoFiles((current) => [...current, ...nextFiles]);
-  }
 
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     setError("");
-    setVideoError("");
-    setUploadedCount(0);
 
     if (!date || !trickId) {
       setError("日付と技名を入力してください");
@@ -72,7 +53,6 @@ export default function PracticeForm() {
       return;
     }
 
-    const logId = `log-${Date.now()}`;
     const log: PracticeLog = {
       id: logId,
       date,
@@ -87,46 +67,23 @@ export default function PracticeForm() {
       weakPoint,
       nextTask,
       videoUrls: videoUrls.filter(Boolean),
-      ...(trainingType === "shibakatsu"
-        ? {
-            shibakatsuMenu: shibakatsuMenu.trim(),
-            durationMinutes,
-            reps,
-            sets,
-          }
-        : {}),
+      ...(trainingType === "shibakatsu" ? { shibakatsuMenu: shibakatsuMenu.trim(), durationMinutes, reps, sets } : {}),
     };
 
-    const logs = await dataRepository.getLogs();
-    await dataRepository.saveLogs([log, ...logs]);
-
-    if (videoFiles.length > 0) {
-      if (!user) {
-        setVideoError("ログインすると動画を保存できます");
-        return;
-      }
-
-      try {
-        setUploading(true);
-        for (const file of videoFiles) {
-          await uploadPracticeVideo({ file, practiceLogId: logId, trickId });
-          setUploadedCount((count) => count + 1);
-        }
-      } catch (uploadError) {
-        const message = uploadError instanceof Error ? uploadError.message : "動画アップロードに失敗しました。";
-        setVideoError(message);
-        return;
-      } finally {
-        setUploading(false);
-      }
+    setSaving(true);
+    try {
+      const logs = await dataRepository.getLogs();
+      await dataRepository.saveLogs([log, ...logs.filter((item) => item.id !== log.id)]);
+      await videoUploaderRef.current?.upload();
+      router.push("/practice");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "練習記録の保存に失敗しました。");
+    } finally {
+      setSaving(false);
     }
-
-    router.push("/practice");
   }
 
-  if (loading) {
-    return <div className="card py-12 text-center text-sm text-slate-400">ログイン状態を確認中...</div>;
-  }
+  if (loading) return <div className="card py-12 text-center text-sm text-slate-400">ログイン状態を確認中...</div>;
 
   if (!user) {
     return (
@@ -149,12 +106,7 @@ export default function PracticeForm() {
             ["snow", "ゲレンデでの滑走"],
             ["shibakatsu", "シバカツ練習"],
           ].map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setTrainingType(value as TrainingType)}
-              className={`rounded-2xl px-3 py-3 text-sm font-black transition ${trainingType === value ? "bg-navy text-white shadow-card" : "bg-slate-100 text-slate-500"}`}
-            >
+            <button key={value} type="button" onClick={() => setTrainingType(value as TrainingType)} className={`rounded-2xl px-3 py-3 text-sm font-black transition ${trainingType === value ? "bg-navy text-white shadow-card" : "bg-slate-100 text-slate-500"}`}>
               {label}
             </button>
           ))}
@@ -258,35 +210,7 @@ export default function PracticeForm() {
         </label>
       </div>
 
-      <div className="card">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <h2 className="font-black">動画を追加</h2>
-            <p className="mt-1 text-xs font-bold text-slate-400">mp4 / mov / webm、最大100MB</p>
-          </div>
-          <UploadCloud className="text-glacier" size={22} />
-        </div>
-        <label className="grid cursor-pointer place-items-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm font-bold text-slate-500">
-          ファイル選択
-          <input type="file" accept={allowedVideoExtensions} multiple className="hidden" onChange={(e) => addFiles(e.target.files)} />
-        </label>
-        {videoFiles.length > 0 && (
-          <div className="mt-3 space-y-2">
-            {videoFiles.map((file, index) => (
-              <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2 text-xs font-bold text-slate-500">
-                <span className="truncate">{file.name}</span>
-                <button type="button" aria-label="動画を削除" onClick={() => setVideoFiles((files) => files.filter((_, fileIndex) => fileIndex !== index))} className="text-slate-400">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-            <p className="text-xs font-bold text-slate-400">合計 {(totalUploadSize / 1024 / 1024).toFixed(1)}MB</p>
-          </div>
-        )}
-        {uploading && <p className="mt-3 text-sm font-bold text-glacier">アップロード中... {uploadedCount}/{videoFiles.length}</p>}
-        {!uploading && uploadedCount > 0 && <p className="mt-3 text-sm font-bold text-emerald-600">アップロード完了 {uploadedCount}件</p>}
-        {videoError && <p className="mt-3 text-sm font-bold text-rose-500">{videoError}</p>}
-      </div>
+      <PracticeVideoUploader ref={videoUploaderRef} practiceLogId={logId} trickId={trickId} />
 
       <div className="card">
         <div className="mb-3 flex items-center justify-between">
@@ -310,9 +234,9 @@ export default function PracticeForm() {
       </div>
 
       {error && <p className="text-center text-sm font-bold text-rose-500">{error}</p>}
-      <button disabled={uploading} className="btn-primary w-full py-4 disabled:opacity-60">
+      <button disabled={saving} className="btn-primary w-full py-4 disabled:opacity-60">
         <Save size={19} />
-        {uploading ? "動画をアップロード中..." : "練習記録を保存"}
+        {saving ? "保存・アップロード中..." : "練習記録を保存"}
       </button>
     </form>
   );

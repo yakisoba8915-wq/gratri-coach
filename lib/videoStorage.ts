@@ -5,6 +5,7 @@ import { supabase } from "./supabase";
 import type { PracticeVideo } from "./types";
 
 const BUCKET_NAME = "practice-videos";
+const SIGNED_URL_EXPIRES_IN = 60 * 60;
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(["video/mp4", "video/quicktime", "video/webm"]);
 const ALLOWED_EXTENSIONS = new Set(["mp4", "mov", "webm"]);
@@ -41,13 +42,6 @@ const fromVideoRow = (row: PracticeVideoRow): PracticeVideo => ({
   createdAt: row.created_at,
 });
 
-async function withSignedFileUrl(video: PracticeVideo): Promise<PracticeVideo> {
-  if (!supabase) return video;
-  const { data, error } = await supabase.storage.from(BUCKET_NAME).createSignedUrl(video.filePath, 60 * 60);
-  if (error || !data?.signedUrl) return video;
-  return { ...video, fileUrl: data.signedUrl };
-}
-
 function getFileExtension(fileName: string): string {
   return fileName.split(".").pop()?.toLowerCase() ?? "";
 }
@@ -69,6 +63,13 @@ async function requireVideoUser(): Promise<string> {
   return user.id;
 }
 
+async function withSignedFileUrl(video: PracticeVideo): Promise<PracticeVideo> {
+  if (!supabase) return video;
+  const { data, error } = await supabase.storage.from(BUCKET_NAME).createSignedUrl(video.filePath, SIGNED_URL_EXPIRES_IN);
+  if (error || !data?.signedUrl) return video;
+  return { ...video, fileUrl: data.signedUrl };
+}
+
 export async function uploadPracticeVideo({ file, practiceLogId, trickId }: UploadPracticeVideoParams): Promise<PracticeVideo> {
   validateVideoFile(file);
   const userId = await requireVideoUser();
@@ -85,7 +86,7 @@ export async function uploadPracticeVideo({ file, practiceLogId, trickId }: Uplo
   });
   if (uploadError) throw uploadError;
 
-  const { data: signedUrlData } = await supabase.storage.from(BUCKET_NAME).createSignedUrl(filePath, 60 * 60);
+  const { data: signedUrlData } = await supabase.storage.from(BUCKET_NAME).createSignedUrl(filePath, SIGNED_URL_EXPIRES_IN);
   const fileUrl = signedUrlData?.signedUrl ?? "";
 
   const { data, error } = await supabase
@@ -116,13 +117,7 @@ export async function getPracticeVideosByLogId(practiceLogId: string): Promise<P
   const user = await getCurrentUser();
   if (!user) return [];
 
-  const { data, error } = await supabase
-    .from("practice_videos")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("practice_log_id", practiceLogId)
-    .order("created_at", { ascending: true });
-
+  const { data, error } = await supabase.from("practice_videos").select("*").eq("user_id", user.id).eq("practice_log_id", practiceLogId).order("created_at", { ascending: true });
   if (error) {
     console.warn("[Gratri Coach] Failed to load practice videos.", error);
     return [];
@@ -135,15 +130,9 @@ export async function deletePracticeVideo(video: PracticeVideo): Promise<void> {
   const userId = await requireVideoUser();
   if (!supabase) throw new Error("Supabase Storage が未設定です。");
 
-  const { error: deleteRowError } = await supabase
-    .from("practice_videos")
-    .delete()
-    .eq("id", video.id)
-    .eq("user_id", userId);
+  const { error: deleteRowError } = await supabase.from("practice_videos").delete().eq("id", video.id).eq("user_id", userId);
   if (deleteRowError) throw deleteRowError;
 
   const { error: deleteFileError } = await supabase.storage.from(BUCKET_NAME).remove([video.filePath]);
-  if (deleteFileError) {
-    console.warn("[Gratri Coach] Failed to remove video file from Storage.", deleteFileError);
-  }
+  if (deleteFileError) console.warn("[Gratri Coach] Failed to remove video file from Storage.", deleteFileError);
 }
