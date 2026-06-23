@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { convertRuleBasedToOpenAiAdvice, generateRuleBasedAdvice, normalizeOpenAiAdvice, type OpenAiAdvice, type TrickStatForAi } from "@/lib/aiAdvisor";
-import type { Goal, OffTrainingPlan, PracticeLog, Profile, Trick } from "@/lib/types";
+import { convertRuleBasedToOpenAiAdvice, generateRuleBasedAdvice, normalizeOpenAiAdvice, type OpenAiAdvice, type PracticeVideoContextForAi, type TrickStatForAi } from "@/lib/aiAdvisor";
+import type { Goal, OffTrainingPlan, PracticeLog, PracticeVideo, Profile, Trick } from "@/lib/types";
 
 interface AdviceRequestBody {
   practiceLogs?: PracticeLog[];
+  practiceVideos?: PracticeVideo[];
+  videoContexts?: PracticeVideoContextForAi[];
   goals?: Goal[];
   profile?: Profile | null;
   offtrainingPlan?: OffTrainingPlan | null;
@@ -37,28 +39,34 @@ function buildFallback(body: AdviceRequestBody): OpenAiAdvice {
   const ruleAdvice = generateRuleBasedAdvice({
     tricks: body.tricks?.length ? body.tricks : fallbackTricks(body.trickStats),
     logs: body.practiceLogs ?? [],
+    videos: body.practiceVideos ?? [],
     goals: body.goals ?? [],
     profile: body.profile ?? undefined,
     offTrainingPlan: body.offtrainingPlan ?? null,
   });
-  return convertRuleBasedToOpenAiAdvice(ruleAdvice);
+  return convertRuleBasedToOpenAiAdvice(ruleAdvice, body.videoContexts ?? []);
 }
 
 function buildPrompt(body: AdviceRequestBody): string {
   return JSON.stringify(
     {
       instruction:
-        "あなたはスノーボードのグラトリ練習コーチです。入力データを分析し、必ず指定JSON形式だけを日本語で返してください。医学的診断や危険な断定は避け、実践しやすい短い助言にしてください。",
+        "あなたはスノーボードのグラトリ練習コーチです。練習記録と動画メタデータを統合して分析してください。動画ファイルの中身は解析できないため、動画本数・ファイル名・作成日・紐づく練習記録から、見直すべき記録や次に撮影すべき技を提案してください。危険な無理な練習は勧めず、基礎技・前提技・安全確認を重視してください。必ず指定JSON形式だけを日本語で返してください。",
       outputSchema: {
         summary: "string",
         weakPoints: ["string"],
         recommendedTricks: ["string"],
         nextPracticeMenu: ["string"],
         offTrainingAdvice: ["string"],
+        videoInsights: ["動画付き記録から見える傾向"],
+        videosToReview: ["動画を見直すべき技や記録"],
+        nextVideosToShoot: ["次に撮影すべき技"],
         priority: "high | medium | low",
       },
       data: {
         practiceLogs: body.practiceLogs ?? [],
+        practiceVideos: body.practiceVideos ?? [],
+        videoContexts: body.videoContexts ?? [],
         goals: body.goals ?? [],
         profile: body.profile ?? null,
         offtrainingPlan: body.offtrainingPlan ?? null,
@@ -98,7 +106,7 @@ export async function POST(request: Request): Promise<NextResponse<OpenAiAdvice>
         messages: [
           {
             role: "system",
-            content: "あなたはグラトリ練習支援アプリのAIコーチです。出力はJSONのみです。",
+            content: "あなたはグラトリ練習支援アプリのAIコーチです。出力はJSONのみです。動画内容の解析は行わず、動画メタデータと練習記録から助言してください。",
           },
           {
             role: "user",

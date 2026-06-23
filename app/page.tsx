@@ -11,6 +11,7 @@ import { generateAdvice } from "@/lib/aiAdvisor";
 import { initialTricks } from "@/lib/mockData";
 import { getRecommendations, getTrendingTrick } from "@/lib/recommendations";
 import { dataRepository } from "@/lib/storage";
+import { getPracticeVideosForCurrentUser } from "@/lib/videoStorage";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -19,11 +20,13 @@ export default function HomePage() {
   const [goals] = useSupabaseData(dataRepository.getGoals);
   const [profile] = useSupabaseData(dataRepository.getProfile);
   const [offTrainingPlan] = useSupabaseData(dataRepository.getOffTrainingPlan);
+  const [practiceVideos] = useSupabaseData(getPracticeVideosForCurrentUser);
   const currentTricks = tricks ?? initialTricks;
   const currentLogs = user ? (logs ?? []) : [];
+  const currentVideos = user ? (practiceVideos ?? []) : [];
   const recommendations = user ? getRecommendations(currentTricks, currentLogs) : [];
   const trending = user ? getTrendingTrick(currentTricks, currentLogs) : undefined;
-  const advice = user ? generateAdvice({ tricks: currentTricks, logs: currentLogs, offTrainingPlan }) : undefined;
+  const advice = user ? generateAdvice({ tricks: currentTricks, logs: currentLogs, videos: currentVideos, offTrainingPlan }) : undefined;
   const nextTask = currentLogs[0]?.nextTask;
 
   return (
@@ -49,7 +52,7 @@ export default function HomePage() {
         </div>
       </Link>
 
-      {advice && <AIAdviceCard advice={advice} tricks={currentTricks} logs={currentLogs} goals={goals ?? []} profile={profile} offTrainingPlan={offTrainingPlan} />}
+      {advice && <AIAdviceCard advice={advice} tricks={currentTricks} logs={currentLogs} videos={currentVideos} goals={goals ?? []} profile={profile} offTrainingPlan={offTrainingPlan} />}
 
       <section className="mb-8">
         <SectionTitle title="今日のおすすめ" subtitle="いま伸ばしたい3トリック" href="/tricks" />

@@ -122,6 +122,9 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - `lib/aiAdvisor.ts` の `generateAdvice()` は初期表示用のローカル解析、`generateAiAdvice()` はAPI Route呼び出し、`generateRuleBasedAdvice()` はフォールバック用です。
 - 分析対象は、トリックごとの成功率、直近10回比較、成功率推移、苦手技、練習頻度、最近練習していない技、シバカツ記録、オフトレ実施状況です。
 - UIは `components/AIAdviceCard.tsx` で表示します。
+- AIアドバイスは `practice_videos` の動画メタデータも考慮します。
+- 現時点では動画内容解析は未実装で、動画本数、ファイル名、作成日、紐づく練習記録をAI入力に含めます。
+- 将来的に動画フレーム解析・フォーム解析へ拡張予定です。
 
 ## AI対話タブ
 

@@ -126,6 +126,20 @@ export async function getPracticeVideosByLogId(practiceLogId: string): Promise<P
   return Promise.all((data as PracticeVideoRow[]).map((row) => withSignedFileUrl(fromVideoRow(row))));
 }
 
+export async function getPracticeVideosForCurrentUser(): Promise<PracticeVideo[]> {
+  if (!supabase) return [];
+  const user = await getCurrentUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase.from("practice_videos").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+  if (error) {
+    console.warn("[Gratri Coach] Failed to load practice videos.", error);
+    return [];
+  }
+
+  return Promise.all((data as PracticeVideoRow[]).map((row) => withSignedFileUrl(fromVideoRow(row))));
+}
+
 export async function deletePracticeVideo(video: PracticeVideo): Promise<void> {
   const userId = await requireVideoUser();
   if (!supabase) throw new Error("Supabase Storage が未設定です。");

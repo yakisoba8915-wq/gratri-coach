@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bot, ChevronRight, Loader2, Sparkles, TrendingDown } from "lucide-react";
+import { Bot, ChevronRight, Loader2, Sparkles, TrendingDown, Video } from "lucide-react";
 import { useState } from "react";
 import { generateAiAdvice, type AIAdvice, type GenerateAdviceParams, type OpenAiAdvice } from "@/lib/aiAdvisor";
 
@@ -15,17 +15,18 @@ const priorityLabel: Record<OpenAiAdvice["priority"], string> = {
   low: "低",
 };
 
-export default function AIAdviceCard({ advice, tricks, logs, goals, profile, offTrainingPlan }: AIAdviceCardProps) {
+export default function AIAdviceCard({ advice, tricks, logs, videos = [], goals, profile, offTrainingPlan }: AIAdviceCardProps) {
   const primary = advice.recommendedTricks[0];
   const [aiAdvice, setAiAdvice] = useState<OpenAiAdvice | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const hasVideos = videos.length > 0;
 
   async function createAiAdvice(): Promise<void> {
     setLoading(true);
     setError("");
     try {
-      setAiAdvice(await generateAiAdvice({ tricks, logs, goals, profile, offTrainingPlan }));
+      setAiAdvice(await generateAiAdvice({ tricks, logs, videos, goals, profile, offTrainingPlan }));
     } catch {
       setError("AIアドバイスの生成に失敗しました。ルールベース分析を表示しています。");
     } finally {
@@ -46,6 +47,11 @@ export default function AIAdviceCard({ advice, tricks, logs, goals, profile, off
         </div>
       </div>
 
+      <div className={`mb-4 flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-bold ${hasVideos ? "bg-emerald-50 text-emerald-700" : "bg-slate-50 text-slate-400"}`}>
+        <Video size={15} />
+        {hasVideos ? `動画付き記録も考慮中（${videos.length}本）` : "動画を追加すると、より具体的なアドバイスができます"}
+      </div>
+
       <button type="button" onClick={createAiAdvice} disabled={loading} className="btn-primary mb-4 w-full py-3 disabled:opacity-60">
         {loading ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
         {loading ? "AIアドバイス生成中..." : "AIアドバイス生成"}
@@ -59,10 +65,13 @@ export default function AIAdviceCard({ advice, tricks, logs, goals, profile, off
             <p className="mt-2 text-sm font-bold leading-7">{aiAdvice.summary}</p>
           </div>
 
+          <AdviceList title="動画付き記録から見える傾向" items={aiAdvice.videoInsights} tone="emerald" />
+          <AdviceList title="動画を見直すべき技" items={aiAdvice.videosToReview} tone="ice" />
+          <AdviceList title="次に撮影すべき技" items={aiAdvice.nextVideosToShoot} tone="slate" />
           <AdviceList title="最近成功率が下がっている技・苦手傾向" items={aiAdvice.weakPoints} tone="rose" />
           <AdviceList title="次に練習すべき技" items={aiAdvice.recommendedTricks} tone="ice" />
           <AdviceList title="次回の練習メニュー" items={aiAdvice.nextPracticeMenu} tone="slate" />
-          <AdviceList title="オフトレアドバイス" items={aiAdvice.offTrainingAdvice} tone="emerald" />
+          <AdviceList title="シバカツ・オフトレで補う内容" items={aiAdvice.offTrainingAdvice} tone="emerald" />
         </div>
       ) : (
         <>
