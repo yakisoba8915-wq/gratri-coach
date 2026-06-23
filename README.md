@@ -120,3 +120,13 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - `lib/aiAdvisor.ts` の `generateAdvice()` は初期表示用のローカル解析、`generateAiAdvice()` はAPI Route呼び出し、`generateRuleBasedAdvice()` はフォールバック用です。
 - 分析対象は、トリックごとの成功率、直近10回比較、成功率推移、苦手技、練習頻度、最近練習していない技、シバカツ記録、オフトレ実施状況です。
 - UIは `components/AIAdviceCard.tsx` で表示します。
+
+## AI対話タブ
+
+- 下部ナビゲーションに「AI対話」タブを追加しています。
+- 画面は `app/ai-chat/page.tsx`、チャットUIは `components/AIChat.tsx` です。
+- API Routeは `app/api/ai/chat/route.ts` です。
+- OpenAI APIを使う場合はサーバー側環境変数 `OPENAI_API_KEY` を設定してください。
+- `OPENAI_API_KEY` 未設定時、またはAPIエラー時はルールベース回答を返します。
+- 未ログイン時もAI対話画面は閲覧できますが、ログインすると練習記録や目標に合わせた個別アドバイス用データをAPIに渡せます。
+- チャット履歴のSupabase保存は未実装です。現在は画面内stateで管理しています。
