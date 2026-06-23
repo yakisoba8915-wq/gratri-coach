@@ -81,3 +81,13 @@ Supabaseへの読み書きが失敗した場合に備えてlocalStorageフォー
 - オフトレ複数選択移行SQL: `supabase/offtraining-multiselect-migration.sql`
 
 UIは `lib/storage.ts` のデータリポジトリだけを参照するため、保存先の詳細から分離されています。
+
+## 動画アップロード
+
+- Supabase Storage bucket は `practice-videos` を使用します。
+- SQL Editorで `supabase/video-storage.sql` を実行すると、`practice_videos` テーブル、RLS、Storage bucket、Storage objects用ポリシーを作成します。
+- 対応形式は `mp4` / `mov` / `webm` です。
+- 1ファイルあたり最大100MBです。
+- 動画は練習記録に複数紐づけできます。
+- 未ログイン時は動画アップロードできません。
+- 現時点では動画の保存・再生のみで、AI動画解析は未実装です。
