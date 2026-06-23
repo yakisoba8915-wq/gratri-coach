@@ -99,3 +99,13 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - シバカツ練習では、練習メニュー、関連トリック、実施時間、回数、セット数を記録できます。
 - 成功率はゲレンデ記録・シバカツ記録の両方で計算できます。
 - 既存データは migration 実行時に `snow` として扱われます。
+
+## プロフィール画像登録
+
+- プロフィール画面からアイコン画像を登録できます。
+- Supabase Storage bucket は `profile-avatars` を使用します。
+- SQL Editorで `supabase/profile-avatar.sql` を実行すると、`profiles.avatar_url` / `profiles.avatar_path` とStorage bucket/policyを追加します。
+- Storageパスは `profile-avatars/{user_id}/avatar-{timestamp}.{ext}` です。
+- 対応形式は `jpg` / `jpeg` / `png` / `webp` です。
+- 最大ファイルサイズは5MBです。
+- 未ログイン時はプロフィール画像を設定できません。

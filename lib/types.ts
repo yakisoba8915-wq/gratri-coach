@@ -25,7 +25,7 @@ export interface PracticeVideo {
 }
 export interface Training { id: string; name: string; category: TrainingCategory; description: string; relatedTrickIds: string[]; minutes: number; }
 export interface Goal { id: string; season: string; type: GoalType; trickId: string; targetRate?: number; completed: boolean; }
-export interface Profile { displayName: string; stance: Stance | ""; }
+export interface Profile { displayName: string; stance: Stance | ""; avatarUrl?: string | null; avatarPath?: string | null; }
 export interface Recommendation { trick: Trick; reason: string; score: number; }
 
 export type OffTrainingEquipment = "シバカツボードを持っている" | "トリックスノーを持っている" | "その他の練習器具を持っている" | "どれも持っていない" | "これから購入予定";
