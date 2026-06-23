@@ -13,9 +13,11 @@ export interface Trick {
   relatedTrainings: string[]; referenceVideos: string[]; imageUrls: string[];
   masteryStatus: MasteryStatus; favorite: boolean;
 }
+export type TrainingType = "snow" | "shibakatsu";
 export interface PracticeLog {
-  id: string; date: string; resortName: string; trickId: string; successCount: number; failCount: number;
+  id: string; date: string; trainingType?: TrainingType; resortName: string; trickId: string; successCount: number; failCount: number;
   memo: string; selfAnalysis: string; weakPoint: string; nextTask: string; snowCondition: SnowCondition; videoUrls: string[];
+  shibakatsuMenu?: string; durationMinutes?: number; reps?: number; sets?: number;
 }
 export interface PracticeVideo {
   id: string; userId: string; practiceLogId: string; trickId: string; fileUrl: string; filePath: string;

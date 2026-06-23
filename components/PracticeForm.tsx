@@ -8,11 +8,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
-import { snowConditions, type PracticeLog, type SnowCondition } from "@/lib/types";
+import { snowConditions, type PracticeLog, type SnowCondition, type TrainingType } from "@/lib/types";
 import { uploadPracticeVideo } from "@/lib/videoStorage";
 
 const maxVideoSizeMb = 100;
 const allowedVideoExtensions = ".mp4,.mov,.webm";
+const shibakatsuMenus = ["プレス練習", "ノーズプレス姿勢", "テールプレス姿勢", "乗せ替え練習", "オーリー動作確認", "ノーリー動作確認", "回転導入練習", "着地姿勢確認"];
 
 export default function PracticeForm() {
   const { user, loading } = useAuth();
@@ -20,12 +21,17 @@ export default function PracticeForm() {
   const [storedTricks] = useSupabaseData(dataRepository.getTricks);
   const tricks = storedTricks ?? initialTricks;
 
+  const [trainingType, setTrainingType] = useState<TrainingType>("snow");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [trickId, setTrickId] = useState("");
   const [resortName, setResortName] = useState("");
   const [successCount, setSuccessCount] = useState(0);
   const [failCount, setFailCount] = useState(0);
   const [snowCondition, setSnowCondition] = useState<SnowCondition>(snowConditions[snowConditions.length - 1]);
+  const [shibakatsuMenu, setShibakatsuMenu] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState(15);
+  const [reps, setReps] = useState(0);
+  const [sets, setSets] = useState(0);
   const [memo, setMemo] = useState("");
   const [selfAnalysis, setSelfAnalysis] = useState("");
   const [weakPoint, setWeakPoint] = useState("");
@@ -61,13 +67,18 @@ export default function PracticeForm() {
       setError("日付と技名を入力してください");
       return;
     }
+    if (trainingType === "shibakatsu" && !shibakatsuMenu.trim()) {
+      setError("シバカツ練習メニューを入力してください");
+      return;
+    }
 
     const logId = `log-${Date.now()}`;
     const log: PracticeLog = {
       id: logId,
       date,
+      trainingType,
       trickId,
-      resortName,
+      resortName: trainingType === "snow" ? resortName : "",
       successCount,
       failCount,
       snowCondition,
@@ -76,6 +87,14 @@ export default function PracticeForm() {
       weakPoint,
       nextTask,
       videoUrls: videoUrls.filter(Boolean),
+      ...(trainingType === "shibakatsu"
+        ? {
+            shibakatsuMenu: shibakatsuMenu.trim(),
+            durationMinutes,
+            reps,
+            sets,
+          }
+        : {}),
     };
 
     const logs = await dataRepository.getLogs();
@@ -123,13 +142,50 @@ export default function PracticeForm() {
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      <div className="card">
+        <p className="mb-3 text-xs font-bold tracking-[.16em] text-glacier">PRACTICE TYPE</p>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            ["snow", "ゲレンデでの滑走"],
+            ["shibakatsu", "シバカツ練習"],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTrainingType(value as TrainingType)}
+              className={`rounded-2xl px-3 py-3 text-sm font-black transition ${trainingType === value ? "bg-navy text-white shadow-card" : "bg-slate-100 text-slate-500"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="card grid gap-4">
         <label className="text-sm font-bold">
           日付 <span className="text-rose-500">*</span>
           <input type="date" required className="field mt-2" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
+
+        {trainingType === "snow" ? (
+          <label className="text-sm font-bold">
+            ゲレンデ
+            <input className="field mt-2" value={resortName} onChange={(e) => setResortName(e.target.value)} placeholder="例：かぐらスキー場" />
+          </label>
+        ) : (
+          <label className="text-sm font-bold">
+            練習メニュー <span className="text-rose-500">*</span>
+            <input className="field mt-2" list="shibakatsu-menu-list" value={shibakatsuMenu} onChange={(e) => setShibakatsuMenu(e.target.value)} placeholder="例：乗せ替え練習" />
+            <datalist id="shibakatsu-menu-list">
+              {shibakatsuMenus.map((menu) => (
+                <option key={menu} value={menu} />
+              ))}
+            </datalist>
+          </label>
+        )}
+
         <label className="text-sm font-bold">
-          技名 <span className="text-rose-500">*</span>
+          {trainingType === "snow" ? "技名" : "関連トリック"} <span className="text-rose-500">*</span>
           <select required className="field mt-2" value={trickId} onChange={(e) => setTrickId(e.target.value)}>
             <option value="">選択してください</option>
             {tricks.map((trick) => (
@@ -139,18 +195,34 @@ export default function PracticeForm() {
             ))}
           </select>
         </label>
-        <label className="text-sm font-bold">
-          スキー場
-          <input className="field mt-2" value={resortName} onChange={(e) => setResortName(e.target.value)} placeholder="例：かぐらスキー場" />
-        </label>
-        <label className="text-sm font-bold">
-          雪質
-          <select className="field mt-2" value={snowCondition} onChange={(e) => setSnowCondition(e.target.value as SnowCondition)}>
-            {snowConditions.map((condition) => (
-              <option key={condition}>{condition}</option>
-            ))}
-          </select>
-        </label>
+
+        {trainingType === "snow" && (
+          <label className="text-sm font-bold">
+            雪質
+            <select className="field mt-2" value={snowCondition} onChange={(e) => setSnowCondition(e.target.value as SnowCondition)}>
+              {snowConditions.map((condition) => (
+                <option key={condition}>{condition}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {trainingType === "shibakatsu" && (
+          <div className="grid grid-cols-3 gap-3">
+            <label className="text-sm font-bold">
+              実施時間
+              <input type="number" min="0" className="field mt-2" value={durationMinutes} onChange={(e) => setDurationMinutes(Math.max(0, Number(e.target.value)))} />
+            </label>
+            <label className="text-sm font-bold">
+              回数
+              <input type="number" min="0" className="field mt-2" value={reps} onChange={(e) => setReps(Math.max(0, Number(e.target.value)))} />
+            </label>
+            <label className="text-sm font-bold">
+              セット数
+              <input type="number" min="0" className="field mt-2" value={sets} onChange={(e) => setSets(Math.max(0, Number(e.target.value)))} />
+            </label>
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -177,7 +249,7 @@ export default function PracticeForm() {
           <textarea className="field mt-2 min-h-20" value={selfAnalysis} onChange={(e) => setSelfAnalysis(e.target.value)} />
         </label>
         <label className="text-sm font-bold">
-          弱点
+          苦手ポイント
           <input className="field mt-2" value={weakPoint} onChange={(e) => setWeakPoint(e.target.value)} />
         </label>
         <label className="text-sm font-bold">

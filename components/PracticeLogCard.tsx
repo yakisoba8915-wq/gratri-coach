@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, MapPin, PlayCircle, Trash2 } from "lucide-react";
+import { Clock, ExternalLink, MapPin, PlayCircle, Repeat, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { calculateSuccessRate, formatDate } from "@/lib/calculations";
 import type { PracticeLog, PracticeVideo, Trick } from "@/lib/types";
@@ -8,6 +8,8 @@ import { deletePracticeVideo, getPracticeVideosByLogId } from "@/lib/videoStorag
 
 export default function PracticeLogCard({ log, trick }: { log: PracticeLog; trick?: Trick }) {
   const rate = calculateSuccessRate(log.successCount, log.failCount);
+  const type = log.trainingType ?? "snow";
+  const isShibakatsu = type === "shibakatsu";
   const [videos, setVideos] = useState<PracticeVideo[]>([]);
   const [loadingVideos, setLoadingVideos] = useState(false);
   const [videoError, setVideoError] = useState("");
@@ -42,23 +44,46 @@ export default function PracticeLogCard({ log, trick }: { log: PracticeLog; tric
   return (
     <article className="card">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold text-glacier">{formatDate(log.date)}</p>
-          <h3 className="mt-1 text-lg font-black">{trick?.nameJa ?? "不明な技"}</h3>
-          {log.resortName && (
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-bold text-glacier">{formatDate(log.date)}</p>
+            <span className={`rounded-full px-2 py-1 text-[10px] font-black ${isShibakatsu ? "bg-emerald-50 text-emerald-600" : "bg-ice text-glacier"}`}>
+              {isShibakatsu ? "シバカツ" : "ゲレンデ"}
+            </span>
+          </div>
+          <h3 className="mt-1 truncate text-lg font-black">{isShibakatsu && log.shibakatsuMenu ? log.shibakatsuMenu : trick?.nameJa ?? "不明な技"}</h3>
+          <p className="mt-1 text-xs font-bold text-slate-400">{isShibakatsu ? `関連：${trick?.nameJa ?? "未設定"}` : trick?.nameJa}</p>
+          {!isShibakatsu && log.resortName && (
             <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
               <MapPin size={12} />
               {log.resortName}
             </p>
           )}
         </div>
-        <div className="grid h-16 w-16 place-items-center rounded-full bg-ice">
+        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-ice">
           <div className="text-center">
             <div className="text-lg font-black text-glacier">{rate}%</div>
             <div className="text-[9px] font-bold text-slate-400">成功率</div>
           </div>
         </div>
       </div>
+
+      {isShibakatsu && (
+        <div className="mt-4 grid grid-cols-3 gap-2 text-xs font-bold text-slate-500">
+          <div className="rounded-2xl bg-slate-50 p-2">
+            <Clock size={14} className="mb-1 text-glacier" />
+            {log.durationMinutes ?? 0}分
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-2">
+            <Repeat size={14} className="mb-1 text-glacier" />
+            {log.reps ?? 0}回
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-2">
+            <Repeat size={14} className="mb-1 text-glacier" />
+            {log.sets ?? 0}セット
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 rounded-2xl bg-slate-50 p-3">
         <p className="text-[10px] font-bold text-slate-400">次回課題</p>
