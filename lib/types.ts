@@ -31,6 +31,12 @@ export interface VideoAnalysisResult {
   summary: string; likelyIssues: string[]; improvementPoints: string[]; nextPractice: string[];
   shibakatsuAdvice: string[]; confidence: "low" | "medium" | "high";
 }
+export interface PracticeVideoAnalysisResult extends VideoAnalysisResult {
+  id: string; userId: string; practiceVideoId: string; practiceLogId: string; trickId: string; createdAt: string;
+}
+export interface VideoAnalysisComparison {
+  repeatedIssues: string[]; improvedPoints: string[]; newIssues: string[]; nextFocus: string[];
+}
 export interface Training { id: string; name: string; category: TrainingCategory; description: string; relatedTrickIds: string[]; minutes: number; }
 export interface Goal { id: string; season: string; type: GoalType; trickId: string; targetRate?: number; completed: boolean; }
 export interface Profile { displayName: string; stance: Stance | ""; avatarUrl?: string | null; avatarPath?: string | null; }

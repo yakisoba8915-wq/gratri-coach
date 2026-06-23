@@ -146,3 +146,16 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - `OPENAI_API_KEY` が未設定、またはAPIエラー時は「AI動画解析は現在利用できません。動画と練習記録をもとに、自己分析メモを残してください。」を表示します。
 - 現時点では動画全体のフォーム解析ではなく、代表フレーム画像と練習記録を使った準備機能です。
 - 将来的に動画全体解析・フレーム連続解析・OpenAI Visionによるフォーム解析へ拡張予定です。
+
+## AI動画解析結果の保存・比較
+
+- AI動画解析結果は `practice_video_analysis_results` テーブルに保存します。
+- SQL Editorで `supabase/video-analysis-results.sql` を実行してください。
+- 保存項目は summary、likelyIssues、improvementPoints、nextPractice、shibakatsuAdvice、confidence です。
+- `user_id` によるRLSで、自分の解析結果だけ select / insert / update / delete できます。
+- 練習記録一覧の動画カードでは、保存済みの過去AI解析結果を再表示できます。
+- 同じ `trick_id` の過去解析結果と最新結果を比較し、以下を表示します。
+  - 以前から続いている課題
+  - 改善している点
+  - 新しく出てきた課題
+  - 次回重点ポイント

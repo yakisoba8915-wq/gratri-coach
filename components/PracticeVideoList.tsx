@@ -1,10 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BrainCircuit, ImageIcon, Loader2, PlayCircle, Trash2 } from "lucide-react";
+import { BrainCircuit, GitCompareArrows, ImageIcon, Loader2, PlayCircle, Trash2 } from "lucide-react";
 import { deletePracticeVideo, getPracticeVideosByLogId } from "@/lib/videoStorage";
 import { extractFramesFromVideo, saveVideoFrameMetadata, uploadVideoFrame } from "@/lib/videoFrameExtractor";
-import type { PracticeLog, PracticeVideo, PracticeVideoFrame, Trick, VideoAnalysisResult } from "@/lib/types";
+import {
+  compareVideoAnalysisResults,
+  getVideoAnalysisResultsByTrickId,
+  getVideoAnalysisResultsByVideoId,
+  saveVideoAnalysisResult,
+} from "@/lib/videoAnalysisStorage";
+import type { PracticeLog, PracticeVideo, PracticeVideoFrame, Trick, VideoAnalysisComparison, VideoAnalysisResult } from "@/lib/types";
 
 interface PracticeVideoListProps {
   practiceLogId: string;
@@ -30,19 +36,88 @@ function ResultList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
+function ComparisonList({ title, items, emptyText }: { title: string; items: string[]; emptyText: string }) {
+  return (
+    <div className="rounded-2xl bg-white px-3 py-2">
+      <p className="text-[10px] font-black text-slate-400">{title}</p>
+      {items.length > 0 ? (
+        <ul className="mt-1 space-y-1">
+          {items.map((item, index) => (
+            <li key={`${title}-${index}`} className="text-xs font-bold text-slate-600">
+              ・{item}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-1 text-xs font-bold text-slate-400">{emptyText}</p>
+      )}
+    </div>
+  );
+}
+
+function ComparisonCard({ comparison }: { comparison: VideoAnalysisComparison }) {
+  return (
+    <div className="space-y-2 rounded-3xl bg-ice/60 p-3">
+      <p className="flex items-center gap-1 text-[10px] font-black text-glacier">
+        <GitCompareArrows size={13} />
+        過去動画との比較
+      </p>
+      <ComparisonList title="以前から続いている課題" items={comparison.repeatedIssues} emptyText="大きく繰り返している課題はまだ見つかっていません。" />
+      <ComparisonList title="改善している点" items={comparison.improvedPoints} emptyText="比較できる改善点はこれから蓄積されます。" />
+      <ComparisonList title="新しく出てきた課題" items={comparison.newIssues} emptyText="新しい課題は目立っていません。" />
+      <ComparisonList title="次回重点ポイント" items={comparison.nextFocus} emptyText="次の解析結果が増えると重点ポイントを出しやすくなります。" />
+    </div>
+  );
+}
+
+function fallbackAnalysis(): VideoAnalysisResult {
+  return {
+    summary: emptyAnalysisError,
+    likelyIssues: [],
+    improvementPoints: [],
+    nextPractice: [],
+    shibakatsuAdvice: [],
+    confidence: "low",
+  };
+}
+
 export default function PracticeVideoList({ practiceLogId, log, trick }: PracticeVideoListProps) {
   const [videos, setVideos] = useState<PracticeVideo[]>([]);
   const [loading, setLoading] = useState(false);
   const [analyzingVideoId, setAnalyzingVideoId] = useState<string | null>(null);
   const [framesByVideoId, setFramesByVideoId] = useState<Record<string, PracticeVideoFrame[]>>({});
   const [analysisByVideoId, setAnalysisByVideoId] = useState<Record<string, VideoAnalysisResult>>({});
+  const [comparisonByVideoId, setComparisonByVideoId] = useState<Record<string, VideoAnalysisComparison>>({});
   const [error, setError] = useState("");
+
+  async function buildComparison(videoId: string, result: VideoAnalysisResult): Promise<void> {
+    const trickId = log.trickId;
+    const history = await getVideoAnalysisResultsByTrickId(trickId);
+    const previousResults = history.filter((item) => item.practiceVideoId !== videoId);
+    setComparisonByVideoId((current) => ({
+      ...current,
+      [videoId]: compareVideoAnalysisResults(result, previousResults),
+    }));
+  }
 
   async function loadVideos(): Promise<void> {
     setLoading(true);
     setError("");
     try {
-      setVideos(await getPracticeVideosByLogId(practiceLogId));
+      const loadedVideos = await getPracticeVideosByLogId(practiceLogId);
+      setVideos(loadedVideos);
+
+      const loadedAnalyses: Record<string, VideoAnalysisResult> = {};
+      await Promise.all(
+        loadedVideos.map(async (video) => {
+          const results = await getVideoAnalysisResultsByVideoId(video.id);
+          const latest = results[0];
+          if (!latest) return;
+          loadedAnalyses[video.id] = latest;
+          await buildComparison(video.id, latest);
+        }),
+      );
+      setAnalysisByVideoId((current) => ({ ...current, ...loadedAnalyses }));
     } catch {
       setError("動画の読み込みに失敗しました。");
     } finally {
@@ -62,6 +137,11 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
         return next;
       });
       setAnalysisByVideoId((current) => {
+        const next = { ...current };
+        delete next[video.id];
+        return next;
+      });
+      setComparisonByVideoId((current) => {
         const next = { ...current };
         delete next[video.id];
         return next;
@@ -104,30 +184,29 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
         }),
       });
 
-      const result = (await response.json().catch(() => ({
-        summary: emptyAnalysisError,
-        likelyIssues: [],
-        improvementPoints: [],
-        nextPractice: [],
-        shibakatsuAdvice: [],
-        confidence: "low",
-      }))) as VideoAnalysisResult;
-
+      const result = (await response.json().catch(() => fallbackAnalysis())) as VideoAnalysisResult;
       setAnalysisByVideoId((current) => ({ ...current, [video.id]: result }));
+
+      try {
+        const savedResult = await saveVideoAnalysisResult({
+          practiceVideoId: video.id,
+          practiceLogId,
+          trickId: log.trickId,
+          result,
+        });
+        const history = await getVideoAnalysisResultsByTrickId(log.trickId);
+        const previousResults = history.filter((item) => item.id !== savedResult.id && item.practiceVideoId !== video.id);
+        setComparisonByVideoId((current) => ({
+          ...current,
+          [video.id]: compareVideoAnalysisResults(result, previousResults),
+        }));
+      } catch {
+        setError("AI解析結果の保存に失敗しました。解析結果は画面上には表示されています。");
+      }
     } catch (caughtError) {
       const message = caughtError instanceof Error ? caughtError.message : emptyAnalysisError;
       setError(message || emptyAnalysisError);
-      setAnalysisByVideoId((current) => ({
-        ...current,
-        [video.id]: {
-          summary: emptyAnalysisError,
-          likelyIssues: [],
-          improvementPoints: [],
-          nextPractice: [],
-          shibakatsuAdvice: [],
-          confidence: "low",
-        },
-      }));
+      setAnalysisByVideoId((current) => ({ ...current, [video.id]: fallbackAnalysis() }));
     } finally {
       setAnalyzingVideoId(null);
     }
@@ -151,6 +230,7 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
           {videos.map((video) => {
             const frames = framesByVideoId[video.id] ?? [];
             const analysis = analysisByVideoId[video.id];
+            const comparison = comparisonByVideoId[video.id];
             const isAnalyzing = analyzingVideoId === video.id;
 
             return (
@@ -213,6 +293,7 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
                         <ResultList title="改善ポイント" items={analysis.improvementPoints} />
                         <ResultList title="次回練習" items={analysis.nextPractice} />
                         <ResultList title="シバカツ補強" items={analysis.shibakatsuAdvice} />
+                        {comparison && <ComparisonCard comparison={comparison} />}
                         <p className="rounded-2xl bg-amber-50 px-3 py-2 text-[10px] font-bold leading-relaxed text-amber-700">
                           注意：静止画ベースの簡易解析です。動画全体の動きはまだ解析していないため、断定ではなく練習のヒントとして使ってください。
                         </p>
