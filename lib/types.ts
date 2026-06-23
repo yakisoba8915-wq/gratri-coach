@@ -37,6 +37,15 @@ export interface PracticeVideoAnalysisResult extends VideoAnalysisResult {
 export interface VideoAnalysisComparison {
   repeatedIssues: string[]; improvedPoints: string[]; newIssues: string[]; nextFocus: string[];
 }
+export type AiAdviceActionType = "next_task" | "offtraining_plan" | "recommended_trick";
+export type AiAdviceAppliedTo = "practice_logs" | "offtraining_plans" | "home_recommendations";
+export interface AiAdviceAction {
+  id: string; userId: string; practiceLogId: string; practiceVideoId: string; analysisResultId: string;
+  actionType: AiAdviceActionType; appliedTo: AiAdviceAppliedTo; content: Record<string, unknown>; createdAt: string;
+}
+export interface AiPracticeMenuUpdate {
+  nextTask: string; recommendedTricks: string[]; shibakatsuItems: OffTrainingPlanItem[]; strengthFlexItems: OffTrainingPlanItem[];
+}
 export interface Training { id: string; name: string; category: TrainingCategory; description: string; relatedTrickIds: string[]; minutes: number; }
 export interface Goal { id: string; season: string; type: GoalType; trickId: string; targetRate?: number; completed: boolean; }
 export interface Profile { displayName: string; stance: Stance | ""; avatarUrl?: string | null; avatarPath?: string | null; }
