@@ -135,3 +135,14 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - `OPENAI_API_KEY` 未設定時、またはAPIエラー時はルールベース回答を返します。
 - 未ログイン時もAI対話画面は閲覧できますが、ログインすると練習記録や目標に合わせた個別アドバイス用データをAPIに渡せます。
 - チャット履歴のSupabase保存は未実装です。現在は画面内stateで管理しています。
+## AI動画解析準備機能
+
+- 練習記録の動画一覧から「AI解析」を実行できます。
+- ブラウザ上の `video` 要素と `canvas` を使い、アップロード済み動画の 25% / 50% / 75% 地点から代表フレームを抽出します。
+- 抽出したフレームは Supabase Storage bucket `practice-video-frames` に保存します。
+- フレームメタデータは `practice_video_frames` テーブルに保存します。SQL Editorで `supabase/video-frames.sql` を実行してください。
+- 保存パスは Storage bucket 配下で `{user_id}/{practice_video_id}/frame-{index}.jpg` です。
+- `app/api/ai/video-analysis/route.ts` はサーバー側で `OPENAI_API_KEY` を使い、静止画ベースの簡易解析を行います。
+- `OPENAI_API_KEY` が未設定、またはAPIエラー時は「AI動画解析は現在利用できません。動画と練習記録をもとに、自己分析メモを残してください。」を表示します。
+- 現時点では動画全体のフォーム解析ではなく、代表フレーム画像と練習記録を使った準備機能です。
+- 将来的に動画全体解析・フレーム連続解析・OpenAI Visionによるフォーム解析へ拡張予定です。

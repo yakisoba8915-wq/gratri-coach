@@ -58,7 +58,7 @@ export default function PracticeLogCard({ log, trick }: { log: PracticeLog; tric
         <p className="mt-1 text-sm font-bold">{log.nextTask || "次の練習で決めよう"}</p>
       </div>
 
-      <PracticeVideoList practiceLogId={log.id} />
+      <PracticeVideoList practiceLogId={log.id} log={log} trick={trick} />
 
       {log.videoUrls.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
