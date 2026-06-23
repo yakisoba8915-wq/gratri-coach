@@ -1,5 +1,5 @@
 import { calculateSuccessRate } from "./calculations";
-import type { OffTrainingPlan, PracticeLog, Trick } from "./types";
+import type { Goal, OffTrainingPlan, PracticeLog, Profile, Trick } from "./types";
 
 export interface AdviceTrick {
   trick: Trick;
@@ -17,14 +17,40 @@ export interface AIAdvice {
   message: string;
 }
 
-interface GenerateAdviceParams {
+export interface TrickStatForAi {
+  trickId: string;
+  nameJa: string;
+  category: string;
+  difficulty: number;
+  totalAttempts: number;
+  successRate: number;
+  recentSuccessRate: number;
+  previousSuccessRate: number;
+  trendDelta: number;
+  snowLogCount: number;
+  shibakatsuLogCount: number;
+  daysSinceLastPractice: number | null;
+}
+
+export interface OpenAiAdvice {
+  summary: string;
+  weakPoints: string[];
+  recommendedTricks: string[];
+  nextPracticeMenu: string[];
+  offTrainingAdvice: string[];
+  priority: "high" | "medium" | "low";
+}
+
+export interface GenerateAdviceParams {
   tricks: Trick[];
   logs: PracticeLog[];
+  goals?: Goal[];
+  profile?: Profile;
   offTrainingPlan?: OffTrainingPlan | null;
   now?: Date;
 }
 
-interface TrickStats {
+interface InternalTrickStats {
   trick: Trick;
   logs: PracticeLog[];
   snowLogs: PracticeLog[];
@@ -33,6 +59,7 @@ interface TrickStats {
   recentSuccessRate: number;
   previousSuccessRate: number;
   trendDelta: number;
+  totalAttempts: number;
   daysSinceLastPractice: number | null;
 }
 
@@ -51,15 +78,21 @@ function getRate(logs: PracticeLog[]): number {
   return calculateSuccessRate(success, fail);
 }
 
+function getAttempts(logs: PracticeLog[]): number {
+  return logs.reduce((sum, log) => sum + log.successCount + log.failCount, 0);
+}
+
 function includesAny(value: string, keywords: string[]): boolean {
   return keywords.some((keyword) => value.includes(keyword));
 }
 
-function buildStats(tricks: Trick[], logs: PracticeLog[], now: Date): TrickStats[] {
+function buildInternalStats(tricks: Trick[], logs: PracticeLog[], now: Date): InternalTrickStats[] {
   return tricks.map((trick) => {
     const trickLogs = logs.filter((log) => log.trickId === trick.id).sort((a, b) => toTime(b.date) - toTime(a.date));
     const recentLogs = trickLogs.slice(0, 10);
     const previousLogs = trickLogs.slice(10, 20);
+    const recentRate = getRate(recentLogs);
+    const previousRate = getRate(previousLogs);
     const lastLog = trickLogs[0];
     return {
       trick,
@@ -67,32 +100,47 @@ function buildStats(tricks: Trick[], logs: PracticeLog[], now: Date): TrickStats
       snowLogs: trickLogs.filter((log) => (log.trainingType ?? "snow") === "snow"),
       shibakatsuLogs: trickLogs.filter((log) => log.trainingType === "shibakatsu"),
       successRate: getRate(trickLogs),
-      recentSuccessRate: getRate(recentLogs),
-      previousSuccessRate: getRate(previousLogs),
-      trendDelta: previousLogs.length ? getRate(recentLogs) - getRate(previousLogs) : 0,
+      recentSuccessRate: recentRate,
+      previousSuccessRate: previousRate,
+      trendDelta: previousLogs.length ? recentRate - previousRate : 0,
+      totalAttempts: getAttempts(trickLogs),
       daysSinceLastPractice: lastLog ? daysBetween(lastLog.date, now) : null,
     };
   });
 }
 
-function toAdviceTrick(stats: TrickStats, index: number, reason: string): AdviceTrick {
-  const priority = index === 0 ? "★★★★★" : index === 1 ? "★★★★" : "★★★";
-  const priorityLabel = index === 0 ? "最優先" : index === 1 ? "推奨" : "余裕があれば";
+export function buildTrickStatsForAi({ tricks, logs, now = new Date() }: Pick<GenerateAdviceParams, "tricks" | "logs" | "now">): TrickStatForAi[] {
+  return buildInternalStats(tricks, [...logs].sort((a, b) => toTime(b.date) - toTime(a.date)), now).map((item) => ({
+    trickId: item.trick.id,
+    nameJa: item.trick.nameJa,
+    category: item.trick.category,
+    difficulty: item.trick.difficulty,
+    totalAttempts: item.totalAttempts,
+    successRate: item.successRate,
+    recentSuccessRate: item.recentSuccessRate,
+    previousSuccessRate: item.previousSuccessRate,
+    trendDelta: item.trendDelta,
+    snowLogCount: item.snowLogs.length,
+    shibakatsuLogCount: item.shibakatsuLogs.length,
+    daysSinceLastPractice: item.daysSinceLastPractice,
+  }));
+}
+
+function toAdviceTrick(stats: InternalTrickStats, index: number, reason: string): AdviceTrick {
   return {
     trick: stats.trick,
     successRate: stats.successRate,
     recentSuccessRate: stats.recentSuccessRate,
-    priority,
-    priorityLabel,
+    priority: index === 0 ? "★★★★★" : index === 1 ? "★★★★" : "★★★",
+    priorityLabel: index === 0 ? "最優先" : index === 1 ? "推奨" : "余裕があれば",
     reason,
   };
 }
 
-function detectCategoryShortage(tricks: Trick[], logs: PracticeLog[], keywords: string[]): string | null {
+function detectCategoryShortage(tricks: Trick[], logs: PracticeLog[], keywords: string[]): boolean {
   const targetIds = new Set(tricks.filter((trick) => includesAny(`${trick.nameJa}${trick.nameEn}${trick.category}`, keywords)).map((trick) => trick.id));
-  if (!targetIds.size) return null;
-  const recentCount = logs.slice(0, 10).filter((log) => targetIds.has(log.trickId)).length;
-  return recentCount <= 1 ? keywords[0] : null;
+  if (!targetIds.size) return false;
+  return logs.slice(0, 10).filter((log) => targetIds.has(log.trickId)).length <= 1;
 }
 
 function offTrainingStatus(plan?: OffTrainingPlan | null): string {
@@ -101,9 +149,9 @@ function offTrainingStatus(plan?: OffTrainingPlan | null): string {
   return activeDays > 0 ? `オフトレは週${activeDays}日分の計画があります。雪上練習が少ない週も土台作りは継続できています。` : "オフトレ予定が少なめです。短い体幹・柔軟だけでも入れると次の雪上練習につながります。";
 }
 
-export function generateAdvice({ tricks, logs, offTrainingPlan, now = new Date() }: GenerateAdviceParams): AIAdvice {
+export function generateRuleBasedAdvice({ tricks, logs, offTrainingPlan, now = new Date() }: GenerateAdviceParams): AIAdvice {
   const sortedLogs = [...logs].sort((a, b) => toTime(b.date) - toTime(a.date));
-  const stats = buildStats(tricks, sortedLogs, now);
+  const stats = buildInternalStats(tricks, sortedLogs, now);
   const practicedStats = stats.filter((item) => item.logs.length > 0);
   const weakStats = practicedStats
     .filter((item) => item.successRate < 50 || item.recentSuccessRate < 50 || item.trendDelta <= -15)
@@ -111,7 +159,7 @@ export function generateAdvice({ tricks, logs, offTrainingPlan, now = new Date()
   const staleStats = stats
     .filter((item) => item.daysSinceLastPractice === null || item.daysSinceLastPractice >= 21)
     .sort((a, b) => (b.daysSinceLastPractice ?? 999) - (a.daysSinceLastPractice ?? 999));
-  const shibakatsuStats = practicedStats.filter((item) => item.shibakatsuLogs.length > 0);
+  const shibakatsuCount = practicedStats.reduce((sum, item) => sum + item.shibakatsuLogs.length, 0);
 
   const recommendedSource = [...weakStats, ...staleStats].filter((item, index, array) => array.findIndex((candidate) => candidate.trick.id === item.trick.id) === index).slice(0, 3);
   const weakTricks = weakStats.slice(0, 3).map((item, index) => toAdviceTrick(item, index, item.trendDelta <= -15 ? "最近の成功率が下がっています" : "成功率が低めです"));
@@ -123,30 +171,71 @@ export function generateAdvice({ tricks, logs, offTrainingPlan, now = new Date()
   const trendAnalysis: string[] = [];
   const declining = weakStats.find((item) => item.trendDelta <= -15);
   if (declining) trendAnalysis.push(`${declining.trick.nameJa}の成功率が最近低下しています`);
-
-  const ollieShortage = detectCategoryShortage(tricks, sortedLogs, ["オーリー", "Ollie", "弾き"]);
-  if (ollieShortage) trendAnalysis.push("オーリー系の練習量が不足しています");
-
+  if (detectCategoryShortage(tricks, sortedLogs, ["オーリー", "Ollie", "弾き"])) trendAnalysis.push("オーリー系の練習量が不足しています");
   const fsStats = practicedStats.filter((item) => includesAny(`${item.trick.nameJa}${item.trick.nameEn}`, ["FS", "Front"]));
   if (fsStats.length && fsStats.every((item) => item.recentSuccessRate >= 60)) trendAnalysis.push("FS系は安定しています");
-
   const practiceDays = new Set(sortedLogs.slice(0, 10).map((log) => log.date)).size;
   if (practiceDays <= 2 && sortedLogs.length > 0) trendAnalysis.push("直近の練習頻度は少なめです");
-  if (shibakatsuStats.length) trendAnalysis.push(`シバカツ記録は${shibakatsuStats.reduce((sum, item) => sum + item.shibakatsuLogs.length, 0)}件あります。動作確認の習慣は作れています`);
+  if (shibakatsuCount > 0) trendAnalysis.push(`シバカツ記録は${shibakatsuCount}件あります。動作確認の習慣は作れています`);
   trendAnalysis.push(offTrainingStatus(offTrainingPlan));
 
   const top = recommendedTricks[0];
-  const shibakatsuHint = shibakatsuStats.length ? "シバカツの日は、同じ系統の動作確認を短く反復しましょう。" : "シバカツ記録も残すと、雪上以外の伸びが見えやすくなります。";
+  const shibakatsuHint = shibakatsuCount > 0 ? "シバカツの日は、同じ系統の動作確認を短く反復しましょう。" : "シバカツ記録も残すと、雪上以外の伸びが見えやすくなります。";
   const message = top
     ? `最近は${top.trick.nameJa}を優先すると良さそうです。${top.reason}。基礎練習を少し増やしつつ、${shibakatsuHint}`
     : sortedLogs.length
       ? `全体的に大きな崩れは少なめです。次は直近で練習していない技を1つ選び、成功率の変化を見ていきましょう。${shibakatsuHint}`
       : "まだ練習記録が少ないので、まずは今日の1本を記録しましょう。成功/失敗の回数と次回課題が入ると、アドバイスの精度が上がります。";
 
+  return { weakTricks, recommendedTricks, trendAnalysis: trendAnalysis.slice(0, 5), message };
+}
+
+export function convertRuleBasedToOpenAiAdvice(advice: AIAdvice): OpenAiAdvice {
   return {
-    weakTricks,
-    recommendedTricks,
-    trendAnalysis: trendAnalysis.slice(0, 5),
-    message,
+    summary: advice.message,
+    weakPoints: advice.weakTricks.map((item) => `${item.trick.nameJa}: ${item.reason}`),
+    recommendedTricks: advice.recommendedTricks.map((item) => `${item.priorityLabel}: ${item.trick.nameJa}（${item.reason}）`),
+    nextPracticeMenu: advice.recommendedTricks.slice(0, 3).map((item) => `${item.trick.nameJa}を10本記録し、成功/失敗の理由をメモする`),
+    offTrainingAdvice: advice.trendAnalysis.filter((item) => item.includes("オフトレ") || item.includes("シバカツ")),
+    priority: advice.recommendedTricks[0]?.priority === "★★★★★" ? "high" : advice.recommendedTricks.length ? "medium" : "low",
+  };
+}
+
+export async function generateAiAdvice(params: GenerateAdviceParams): Promise<OpenAiAdvice> {
+  const fallback = convertRuleBasedToOpenAiAdvice(generateRuleBasedAdvice(params));
+  try {
+    const response = await fetch("/api/ai/advice", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        practiceLogs: params.logs,
+        goals: params.goals ?? [],
+        profile: params.profile ?? null,
+        offtrainingPlan: params.offTrainingPlan ?? null,
+        trickStats: buildTrickStatsForAi(params),
+        tricks: params.tricks,
+      }),
+    });
+    if (!response.ok) return fallback;
+    const data = (await response.json()) as OpenAiAdvice;
+    return normalizeOpenAiAdvice(data, fallback);
+  } catch {
+    return fallback;
+  }
+}
+
+export function generateAdvice(params: GenerateAdviceParams): AIAdvice {
+  return generateRuleBasedAdvice(params);
+}
+
+export function normalizeOpenAiAdvice(value: Partial<OpenAiAdvice>, fallback: OpenAiAdvice): OpenAiAdvice {
+  const priority = value.priority === "high" || value.priority === "medium" || value.priority === "low" ? value.priority : fallback.priority;
+  return {
+    summary: typeof value.summary === "string" && value.summary.trim() ? value.summary : fallback.summary,
+    weakPoints: Array.isArray(value.weakPoints) ? value.weakPoints.map(String).slice(0, 5) : fallback.weakPoints,
+    recommendedTricks: Array.isArray(value.recommendedTricks) ? value.recommendedTricks.map(String).slice(0, 3) : fallback.recommendedTricks,
+    nextPracticeMenu: Array.isArray(value.nextPracticeMenu) ? value.nextPracticeMenu.map(String).slice(0, 6) : fallback.nextPracticeMenu,
+    offTrainingAdvice: Array.isArray(value.offTrainingAdvice) ? value.offTrainingAdvice.map(String).slice(0, 5) : fallback.offTrainingAdvice,
+    priority,
   };
 }

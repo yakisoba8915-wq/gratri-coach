@@ -112,8 +112,11 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 
 ## AI練習アドバイス
 
-- 現在はChatGPT API未使用のローカル解析版です。
-- `lib/aiAdvisor.ts` の `generateAdvice()` が、練習記録・シバカツ記録・オフトレプランからアドバイスを生成します。
+- `app/api/ai/advice/route.ts` からOpenAI APIを呼び出して、練習アドバイスを生成できます。
+- APIキーはクライアント側に出さず、サーバー側環境変数 `OPENAI_API_KEY` のみで使用します。
+- Vercelでは Project Settings > Environment Variables に `OPENAI_API_KEY` を設定してください。
+- 任意で `OPENAI_MODEL` を設定できます。未設定時はデフォルトモデルを使用します。
+- `OPENAI_API_KEY` 未設定時、またはAPIエラー時はルールベース分析にフォールバックします。
+- `lib/aiAdvisor.ts` の `generateAdvice()` は初期表示用のローカル解析、`generateAiAdvice()` はAPI Route呼び出し、`generateRuleBasedAdvice()` はフォールバック用です。
 - 分析対象は、トリックごとの成功率、直近10回比較、成功率推移、苦手技、練習頻度、最近練習していない技、シバカツ記録、オフトレ実施状況です。
 - UIは `components/AIAdviceCard.tsx` で表示します。
-- 将来的にOpenAI APIへ切り替える場合は、`generateAdvice()` の内部実装をAPI呼び出しに差し替える想定です。

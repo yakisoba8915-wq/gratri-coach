@@ -16,6 +16,8 @@ export default function HomePage() {
   const { user } = useAuth();
   const [tricks] = useSupabaseData(dataRepository.getTricks);
   const [logs] = useSupabaseData(dataRepository.getLogs);
+  const [goals] = useSupabaseData(dataRepository.getGoals);
+  const [profile] = useSupabaseData(dataRepository.getProfile);
   const [offTrainingPlan] = useSupabaseData(dataRepository.getOffTrainingPlan);
   const currentTricks = tricks ?? initialTricks;
   const currentLogs = user ? (logs ?? []) : [];
@@ -47,7 +49,7 @@ export default function HomePage() {
         </div>
       </Link>
 
-      {advice && <AIAdviceCard advice={advice} />}
+      {advice && <AIAdviceCard advice={advice} tricks={currentTricks} logs={currentLogs} goals={goals ?? []} profile={profile} offTrainingPlan={offTrainingPlan} />}
 
       <section className="mb-8">
         <SectionTitle title="今日のおすすめ" subtitle="いま伸ばしたい3トリック" href="/tricks" />
