@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { AI_USAGE_LIMIT_MESSAGE, getServerAiUsageStatus, recordServerAiUsage } from "@/lib/aiUsageLimits";
 import type { AiAdviceAction, AiCoachMessage, Goal, OffTrainingPlan, PracticeLog, PracticeVideoAnalysisResult, Profile } from "@/lib/types";
 
 interface ChatMessage {
@@ -88,6 +89,10 @@ export async function POST(request: Request): Promise<NextResponse<{ reply: stri
   if (!message) return NextResponse.json({ reply: "質問を入力してください。", source: "rule" });
   if (!apiKey) return NextResponse.json({ reply: fallback, source: "rule" });
 
+  const usageStatus = await getServerAiUsageStatus(request, "ai_chat");
+  if (!usageStatus) return NextResponse.json({ reply: fallback, source: "rule" });
+  if (usageStatus.limitReached) return NextResponse.json({ reply: AI_USAGE_LIMIT_MESSAGE, source: "rule" });
+
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -115,6 +120,7 @@ export async function POST(request: Request): Promise<NextResponse<{ reply: stri
     if (!response.ok) return NextResponse.json({ reply: fallback, source: "rule" });
     const data = (await response.json()) as OpenAiChatResponse;
     const reply = data.choices?.[0]?.message?.content?.trim();
+    if (reply) await recordServerAiUsage(request, "ai_chat");
     return NextResponse.json({ reply: reply || fallback, source: reply ? "openai" : "rule" });
   } catch {
     return NextResponse.json({ reply: fallback, source: "rule" });

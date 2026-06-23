@@ -1,4 +1,5 @@
 import { calculateSuccessRate } from "./calculations";
+import { getAiRequestHeaders } from "./aiUsageLimits";
 import type { Goal, OffTrainingPlan, PracticeLog, PracticeVideo, Profile, Trick } from "./types";
 
 export interface AdviceTrick {
@@ -266,9 +267,10 @@ export async function generateAiAdvice(params: GenerateAdviceParams): Promise<Op
   const videoContexts = buildPracticeVideoContexts(params);
   const fallback = convertRuleBasedToOpenAiAdvice(generateRuleBasedAdvice(params), videoContexts);
   try {
+    const authHeaders = await getAiRequestHeaders();
     const response = await fetch("/api/ai/advice", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders },
       body: JSON.stringify({
         practiceLogs: params.logs,
         practiceVideos: params.videos ?? [],

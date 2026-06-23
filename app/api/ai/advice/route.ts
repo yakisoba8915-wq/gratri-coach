@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { convertRuleBasedToOpenAiAdvice, generateRuleBasedAdvice, normalizeOpenAiAdvice, type OpenAiAdvice, type PracticeVideoContextForAi, type TrickStatForAi } from "@/lib/aiAdvisor";
+import { AI_USAGE_LIMIT_MESSAGE, getServerAiUsageStatus, recordServerAiUsage } from "@/lib/aiUsageLimits";
 import type { Goal, OffTrainingPlan, PracticeLog, PracticeVideo, Profile, Trick } from "@/lib/types";
 
 interface AdviceRequestBody {
@@ -92,6 +93,11 @@ export async function POST(request: Request): Promise<NextResponse<OpenAiAdvice>
   const fallback = buildFallback(body);
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return NextResponse.json(fallback);
+  const usageStatus = await getServerAiUsageStatus(request, "ai_advice");
+  if (!usageStatus) return NextResponse.json(fallback);
+  if (usageStatus.limitReached) {
+    return NextResponse.json({ ...fallback, summary: AI_USAGE_LIMIT_MESSAGE, priority: "low" });
+  }
 
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -121,6 +127,7 @@ export async function POST(request: Request): Promise<NextResponse<OpenAiAdvice>
     const data = (await response.json()) as OpenAiChatResponse;
     const content = data.choices?.[0]?.message?.content;
     if (!content) return NextResponse.json(fallback);
+    await recordServerAiUsage(request, "ai_advice");
     return NextResponse.json(parseAdvice(content, fallback));
   } catch {
     return NextResponse.json(fallback);

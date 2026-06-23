@@ -43,4 +43,4 @@ export const initialGoals: Goal[] = [
   { id:"goal-1", season:"2026-27", type:"技をメイクする", trickId:"ollie-bs-360", completed:false },
   { id:"goal-2", season:"2026-27", type:"成功率を上げる", trickId:"ollie-bs-180", targetRate:60, completed:false }
 ];
-export const initialProfile: Profile = { displayName:"グラトリビギナー", stance:"レギュラー" };
+export const initialProfile: Profile = { displayName:"グラトリビギナー", stance:"レギュラー", planType:"free" };

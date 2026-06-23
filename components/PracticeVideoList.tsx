@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { BrainCircuit, GitCompareArrows, ImageIcon, Loader2, PlayCircle, Sparkles, Trash2 } from "lucide-react";
 import { applyAiVideoAnalysisToNextTask, applyAiVideoAnalysisToPracticeMenu, generatePracticeMenuUpdateFromAnalysis } from "@/lib/aiAdviceActions";
 import { saveAiCoachMessage } from "@/lib/aiCoachMemory";
-import type { AiPracticeMenuUpdate, PracticeLog, PracticeVideo, PracticeVideoFrame, Trick, VideoAnalysisComparison, VideoAnalysisResult } from "@/lib/types";
+import { AI_USAGE_LIMIT_MESSAGE, getAiRequestHeaders, getAiUsageStatus } from "@/lib/aiUsageLimits";
+import type { AiPracticeMenuUpdate, AiUsageStatus, PracticeLog, PracticeVideo, PracticeVideoFrame, Trick, VideoAnalysisComparison, VideoAnalysisResult } from "@/lib/types";
 import { compareVideoAnalysisResults, getVideoAnalysisResultsByTrickId, getVideoAnalysisResultsByVideoId, saveVideoAnalysisResult } from "@/lib/videoAnalysisStorage";
 import { extractFramesFromVideo, saveVideoFrameMetadata, uploadVideoFrame } from "@/lib/videoFrameExtractor";
 import { deletePracticeVideo, getPracticeVideosByLogId } from "@/lib/videoStorage";
@@ -108,6 +109,7 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
   const [analysisByVideoId, setAnalysisByVideoId] = useState<Record<string, VideoAnalysisResult>>({});
   const [analysisResultIdByVideoId, setAnalysisResultIdByVideoId] = useState<Record<string, string>>({});
   const [comparisonByVideoId, setComparisonByVideoId] = useState<Record<string, VideoAnalysisComparison>>({});
+  const [usageStatus, setUsageStatus] = useState<AiUsageStatus | null>(null);
   const [error, setError] = useState("");
 
   async function buildComparison(videoId: string, result: VideoAnalysisResult): Promise<void> {
@@ -142,6 +144,10 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadUsageStatus(): Promise<void> {
+    setUsageStatus(await getAiUsageStatus("ai_video_analysis"));
   }
 
   async function removeVideo(video: PracticeVideo): Promise<void> {
@@ -186,6 +192,12 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
   }
 
   async function analyzeVideo(video: PracticeVideo): Promise<void> {
+    const latestUsage = await getAiUsageStatus("ai_video_analysis");
+    setUsageStatus(latestUsage);
+    if (latestUsage?.limitReached) {
+      setError(AI_USAGE_LIMIT_MESSAGE);
+      return;
+    }
     setAnalyzingVideoId(video.id);
     setError("");
     try {
@@ -210,12 +222,17 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
 
       const response = await fetch("/api/ai/video-analysis", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAiRequestHeaders()) },
         body: JSON.stringify({ trickName: trick?.nameJa ?? log.trickId, practiceLog: log, frames: savedFrames }),
       });
 
       const result = (await response.json().catch(() => fallbackAnalysis())) as VideoAnalysisResult;
+      setUsageStatus(await getAiUsageStatus("ai_video_analysis"));
       setAnalysisByVideoId((current) => ({ ...current, [video.id]: result }));
+      if (result.summary === AI_USAGE_LIMIT_MESSAGE) {
+        setError(AI_USAGE_LIMIT_MESSAGE);
+        return;
+      }
 
       try {
         const savedResult = await saveVideoAnalysisResult({ practiceVideoId: video.id, practiceLogId, trickId: log.trickId, result });
@@ -310,6 +327,7 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
 
   useEffect(() => {
     void loadVideos();
+    void loadUsageStatus();
   }, [practiceLogId]);
 
   if (loading) return <p className="mt-3 text-xs font-bold text-slate-400">動画を確認中...</p>;
@@ -323,6 +341,11 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
             <PlayCircle size={16} className="text-glacier" />
             保存済み動画
           </div>
+          {usageStatus && (
+            <p className="rounded-2xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-500">
+              AI動画解析 残り {usageStatus.unlimited ? "無制限" : `${usageStatus.remaining} / ${usageStatus.limit} 回`}
+            </p>
+          )}
           {videos.map((video) => {
             const frames = framesByVideoId[video.id] ?? [];
             const analysis = analysisByVideoId[video.id];

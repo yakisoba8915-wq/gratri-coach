@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { Bot, ChevronRight, Loader2, Sparkles, TrendingDown, Video } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { generateAiAdvice, type AIAdvice, type GenerateAdviceParams, type OpenAiAdvice } from "@/lib/aiAdvisor";
 import { saveAiCoachMessage } from "@/lib/aiCoachMemory";
+import { AI_USAGE_LIMIT_MESSAGE, getAiUsageStatus } from "@/lib/aiUsageLimits";
+import type { AiUsageStatus } from "@/lib/types";
 
 type AIAdviceCardProps = GenerateAdviceParams & {
   advice: AIAdvice;
@@ -19,11 +21,18 @@ const priorityLabel: Record<OpenAiAdvice["priority"], string> = {
 export default function AIAdviceCard({ advice, tricks, logs, videos = [], goals, profile, offTrainingPlan }: AIAdviceCardProps) {
   const primary = advice.recommendedTricks[0];
   const [aiAdvice, setAiAdvice] = useState<OpenAiAdvice | null>(null);
+  const [usageStatus, setUsageStatus] = useState<AiUsageStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const hasVideos = videos.length > 0;
 
   async function createAiAdvice(): Promise<void> {
+    const latestUsage = await getAiUsageStatus("ai_advice");
+    setUsageStatus(latestUsage);
+    if (latestUsage?.limitReached) {
+      setError(AI_USAGE_LIMIT_MESSAGE);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -34,12 +43,21 @@ export default function AIAdviceCard({ advice, tricks, logs, videos = [], goals,
         sourceType: "advice",
         message: `AI練習アドバイス: ${nextAdvice.summary}\n次回練習: ${nextAdvice.nextPracticeMenu.join(" / ")}\nオフトレ: ${nextAdvice.offTrainingAdvice.join(" / ")}`,
       });
+      setUsageStatus(await getAiUsageStatus("ai_advice"));
     } catch {
       setError("AIアドバイスの生成に失敗しました。ルールベース分析を表示しています。");
     } finally {
       setLoading(false);
     }
   }
+
+  async function loadUsage(): Promise<void> {
+    setUsageStatus(await getAiUsageStatus("ai_advice"));
+  }
+
+  useEffect(() => {
+    void loadUsage();
+  }, []);
 
   return (
     <section className="card mb-8 overflow-hidden">
@@ -63,6 +81,11 @@ export default function AIAdviceCard({ advice, tricks, logs, videos = [], goals,
         {loading ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
         {loading ? "AIアドバイス生成中..." : "AIアドバイス生成"}
       </button>
+      {usageStatus && (
+        <p className="mb-4 rounded-2xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-500">
+          AI練習アドバイス 残り {usageStatus.unlimited ? "無制限" : `${usageStatus.remaining} / ${usageStatus.limit} 回`}
+        </p>
+      )}
       {error && <p className="mb-4 rounded-2xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-500">{error}</p>}
 
       {aiAdvice ? (

@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { getRecentAiAdviceActions } from "@/lib/aiAdviceActions";
 import { buildTrickStatsForAi } from "@/lib/aiAdvisor";
 import { getAiCoachMessages, resetAiCoachMessages, saveAiCoachMessage } from "@/lib/aiCoachMemory";
-import type { AiCoachMessage, Goal, OffTrainingPlan, PracticeLog, Profile, Trick } from "@/lib/types";
+import { AI_USAGE_LIMIT_MESSAGE, getAiRequestHeaders, getAiUsageStatus } from "@/lib/aiUsageLimits";
+import type { AiCoachMessage, AiUsageStatus, Goal, OffTrainingPlan, PracticeLog, Profile, Trick } from "@/lib/types";
 import { getRecentVideoAnalysisResults } from "@/lib/videoAnalysisStorage";
 
 type ChatRole = "user" | "assistant";
@@ -53,6 +54,7 @@ export default function AIChat({ isLoggedIn, profile, practiceLogs, goals, offTr
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [usageStatus, setUsageStatus] = useState<AiUsageStatus | null>(null);
   const [error, setError] = useState("");
 
   const trickStats = useMemo(() => buildTrickStatsForAi({ tricks, logs: practiceLogs }), [tricks, practiceLogs]);
@@ -74,6 +76,14 @@ export default function AIChat({ isLoggedIn, profile, practiceLogs, goals, offTr
     }
   }
 
+  async function loadUsageStatus(): Promise<void> {
+    if (!isLoggedIn) {
+      setUsageStatus(null);
+      return;
+    }
+    setUsageStatus(await getAiUsageStatus("ai_chat"));
+  }
+
   async function resetHistory(): Promise<void> {
     if (!window.confirm("AIコーチとの会話履歴を削除します。よろしいですか？")) return;
     setError("");
@@ -89,6 +99,12 @@ export default function AIChat({ isLoggedIn, profile, practiceLogs, goals, offTr
   async function sendMessage(text = input, selectedCategory = category): Promise<void> {
     const content = text.trim();
     if (!content || loading) return;
+    const latestUsage = isLoggedIn ? await getAiUsageStatus("ai_chat") : null;
+    if (latestUsage?.limitReached) {
+      setUsageStatus(latestUsage);
+      setError(AI_USAGE_LIMIT_MESSAGE);
+      return;
+    }
 
     const userMessage: ChatMessage = { id: `user-${Date.now()}`, role: "user", content };
     const nextMessages = [...messages, userMessage];
@@ -114,7 +130,7 @@ export default function AIChat({ isLoggedIn, profile, practiceLogs, goals, offTr
 
       const response = await fetch("/api/ai/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await getAiRequestHeaders()) },
         body: JSON.stringify({
           message: content,
           category: selectedCategory,
@@ -145,6 +161,7 @@ export default function AIChat({ isLoggedIn, profile, practiceLogs, goals, offTr
           setMemoryMessages((current) => [...current, memory]);
         }
       }
+      await loadUsageStatus();
     } catch {
       const fallback = "AI APIが未設定、または通信に失敗したため、基本アドバイスを表示しています。基礎技と前提技を確認し、無理のない範囲で練習しましょう。";
       setError("通信に失敗しました。少し時間を置いてもう一度試してください。");
@@ -157,6 +174,7 @@ export default function AIChat({ isLoggedIn, profile, practiceLogs, goals, offTr
 
   useEffect(() => {
     void loadHistory();
+    void loadUsageStatus();
   }, [isLoggedIn]);
 
   return (
@@ -176,6 +194,11 @@ export default function AIChat({ isLoggedIn, profile, practiceLogs, goals, offTr
             </button>
           )}
         </div>
+        {usageStatus && (
+          <p className="mb-3 rounded-2xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-500">
+            AI対話 残り {usageStatus.unlimited ? "無制限" : `${usageStatus.remaining} / ${usageStatus.limit} 回`}
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           {quickButtons.map((button) => (
             <button

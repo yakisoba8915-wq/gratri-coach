@@ -179,3 +179,16 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - AI練習アドバイス、AI動画解析結果、練習メニュー反映履歴もAIコーチ履歴として保存し、次回以降の回答で参照できるようにしています。
 - AI対話画面の「履歴をリセット」から、確認後にAIコーチ履歴を削除できます。
 - `ai_coach_messages` は `user_id` によるRLSで、自分のAI履歴だけ select / insert / update / delete できます。
+
+## AI利用回数制限
+
+- OpenAI API費用対策として、AI対話、AI練習アドバイス、AI動画解析に日次利用回数制限を追加しています。
+- SQL Editorで `supabase/ai-usage-limits.sql` を実行してください。
+- 使用履歴は `ai_usage_logs` に保存します。
+- `profiles.plan_type` でプランを管理します。プロフィール画面からは編集できません。
+- プラン種別は `free` / `premium` / `admin` です。
+- `free` は AI対話 3回/日、AI練習アドバイス 3回/日、AI動画解析 1回/日です。
+- `premium` は AI対話 50回/日、AI練習アドバイス 50回/日、AI動画解析 10回/日です。
+- `admin` は無制限です。
+- 上限に達した場合は OpenAI API を呼ばず、「本日のAI利用上限に達しました。明日また利用できます。」を表示します。
+- `ai_usage_logs` は `user_id` によるRLSで、自分の使用履歴のみ select / insert できます。

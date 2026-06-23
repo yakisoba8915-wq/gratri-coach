@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { AI_USAGE_LIMIT_MESSAGE, getServerAiUsageStatus, recordServerAiUsage } from "@/lib/aiUsageLimits";
 import type { PracticeLog, PracticeVideoFrame, VideoAnalysisResult } from "@/lib/types";
 
 interface VideoAnalysisRequestBody {
@@ -103,6 +104,9 @@ export async function POST(request: Request): Promise<NextResponse<VideoAnalysis
   const frames = (body.frames ?? []).filter((frame) => frame.frameUrl);
 
   if (!apiKey || frames.length === 0) return NextResponse.json(fallback);
+  const usageStatus = await getServerAiUsageStatus(request, "ai_video_analysis");
+  if (!usageStatus) return NextResponse.json(fallback);
+  if (usageStatus.limitReached) return NextResponse.json({ ...fallback, summary: AI_USAGE_LIMIT_MESSAGE });
 
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -139,6 +143,7 @@ export async function POST(request: Request): Promise<NextResponse<VideoAnalysis
     const data = (await response.json()) as OpenAiChatResponse;
     const content = data.choices?.[0]?.message?.content;
     if (!content) return NextResponse.json(fallback);
+    await recordServerAiUsage(request, "ai_video_analysis");
     return NextResponse.json(parseResult(content, fallback));
   } catch {
     return NextResponse.json(fallback);
