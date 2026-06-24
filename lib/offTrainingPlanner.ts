@@ -1,4 +1,4 @@
-import type { OffTrainingPlan,OffTrainingPlanItem,OffTrainingPreferences,TrainingCategory,Weekday,WeeklyOffTrainingDay } from "./types";
+import type { OffTrainingPlan,OffTrainingPlanItem,OffTrainingPreferences,SelectedShibakatsuMenu,TrainingCategory,Weekday,WeeklyOffTrainingDay } from "./types";
 import { getShibakatsuMenus } from "./shibakatsuMenu";
 
 type LegacyPreferences=Omit<OffTrainingPreferences,"equipment"|"location"|"focusAbility"|"targetTrickType"|"injuryConcern">&{equipment:string;location:string;focusAbility:string;targetTrickType:string;injuryConcern:string};
@@ -52,9 +52,30 @@ function strengthPriorities(focus:string[],injuries:string[],intensity:OffTraini
   return {strength,flexibility:unique([...flexNames.map((name)=>flexibilityMenus.find((seed)=>seed.name===name)).filter((seed):seed is Seed=>Boolean(seed)),...flexibilityMenus])};
 }
 
-function buildShibakatsuDay(day:Weekday,focus:string[],targets:string[],sessionMinutes:number,menuCount:number):WeeklyOffTrainingDay{
+function buildShibakatsuDayFallback(day:Weekday,focus:string[],targets:string[],sessionMinutes:number,menuCount:number):WeeklyOffTrainingDay{
   const items:OffTrainingPlanItem[]=getShibakatsuMenus({focusAbilities:focus,targetTrickTypes:targets,limit:menuCount}).map(({menu})=>({name:menu.name,category:"シバカツ",amount:menu.duration,purpose:menu.purpose,caution:"安全なスペースを確保してシバカツボードで行う"}));
   return {day,dayType:"シバカツの日",title:"シバカツ専用練習日",focus,estimatedMinutes:sessionMinutes,items};
+}
+function buildShibakatsuDayFromDb(day:Weekday,focus:string[],sessionMinutes:number,menus:SelectedShibakatsuMenu[]):WeeklyOffTrainingDay{
+  const items:OffTrainingPlanItem[]=menus.map((menu)=>({
+    name:menu.name,
+    category:"シバカツ",
+    amount:`Lv.${menu.difficulty} ・ ${sessionMinutes<=15?"5分":"8〜10分"}`,
+    purpose:menu.description||menu.relatedSnowTrick||"シバカツで雪上動作を反復する",
+    caution:menu.cautions||"安全なスペースを確保し、無理のない範囲で行う",
+    difficulty:menu.difficulty,
+    menuCategory:menu.category,
+    relatedSnowTrick:menu.relatedSnowTrick,
+    description:menu.description,
+    tip:menu.tips,
+    source:"database",
+  }));
+  return {day,dayType:"シバカツの日",title:"シバカツ専用練習日",focus,estimatedMinutes:sessionMinutes,items};
+}
+function buildShibakatsuDay(day:Weekday,focus:string[],targets:string[],sessionMinutes:number,menuCount:number,menus:SelectedShibakatsuMenu[]):WeeklyOffTrainingDay{
+  return menus.length>0
+    ? buildShibakatsuDayFromDb(day,focus,sessionMinutes,menus)
+    : buildShibakatsuDayFallback(day,focus,targets,sessionMinutes,menuCount);
 }
 function buildImageTrainingDay(day:Weekday,focus:string[],sessionMinutes:number,menuCount:number,pool:Seed[],preferences:OffTrainingPreferences|LegacyPreferences,knee:boolean):WeeklyOffTrainingDay{
   return {day,dayType:"板操作イメージトレーニングの日",title:"板操作イメージトレーニングの日",focus,estimatedMinutes:sessionMinutes,items:toPlanItems(pool.slice(0,menuCount),preferences,knee)};
@@ -66,21 +87,28 @@ function buildStrengthFlexibilityDay(day:Weekday,focus:string[],sessionMinutes:n
 }
 function buildRestDay(day:Weekday):WeeklyOffTrainingDay{return {day,dayType:"休み",title:"休養日",focus:[],estimatedMinutes:0,items:[]};}
 
-export function generateOffTrainingPlan(preferences:OffTrainingPreferences|LegacyPreferences,userId:string):OffTrainingPlan{
+export function generateOffTrainingPlan(preferences:OffTrainingPreferences|LegacyPreferences,userId:string,dbShibakatsuMenus:SelectedShibakatsuMenu[]=[]):OffTrainingPlan{
   const equipment=list(preferences.equipment),locations=list(preferences.location),focus=list(preferences.focusAbility),targets=list(preferences.targetTrickType),injuries=list(preferences.injuryConcern);
   const hasShibakatsu=equipment.includes("シバカツボードを持っている");
   const knee=injuries.includes("膝")||injuries.includes("複数ある");const schedule=schedules[Math.min(preferences.weeklyDays,4)]??schedules[4];
-  const shibaCount=preferences.sessionMinutes<=15?3:preferences.sessionMinutes<=30?4:preferences.sessionMinutes<=45?5:6;
+  const shibaCount=preferences.sessionMinutes<=15?2:3;
   const strengthCount=preferences.sessionMinutes<=15?2:preferences.sessionMinutes<=30?3:preferences.sessionMinutes<=45?4:5;
   const flexCount=preferences.sessionMinutes<=15?1:preferences.sessionMinutes<=30?2:3;
   const imageTrainingPool=imageTrainingPriorities(focus).filter((seed)=>!(knee&&seed.jump));const strengthPools=strengthPriorities(focus,injuries,preferences.intensity);
   if(locations.includes("家"))strengthPools.strength=prioritize(strengthPools.strength,["プランク","ロシアンツイスト","ジャンプスクワット","片足スクワット"]);
   if(locations.includes("公園"))strengthPools.strength=prioritize(strengthPools.strength,["ジャンプスクワット","片足スクワット","片足バランス"]);
   if(locations.includes("ジム")&&preferences.gymAvailable!=="使えない")strengthPools.strength=prioritize(strengthPools.strength,["スクワット","ブルガリアンスクワット","RDL","ボックスジャンプ"]);
+  let shibakatsuDayIndex=0;
   const weeklyPlan:WeeklyOffTrainingDay[]=weekdays.map((day)=>{
     const activeType=schedule[day];
     if(!activeType)return buildRestDay(day);
-    if(activeType==="shiba"&&hasShibakatsu)return buildShibakatsuDay(day,focus,targets,preferences.sessionMinutes,shibaCount);
+    if(activeType==="shiba"&&hasShibakatsu){
+      const menus=dbShibakatsuMenus.length>0
+        ? Array.from({length:Math.min(shibaCount,dbShibakatsuMenus.length)},(_,index)=>dbShibakatsuMenus[(shibakatsuDayIndex*shibaCount+index)%dbShibakatsuMenus.length])
+        : [];
+      shibakatsuDayIndex+=1;
+      return buildShibakatsuDay(day,focus,targets,preferences.sessionMinutes,shibaCount,menus);
+    }
     if(activeType==="shiba")return buildImageTrainingDay(day,focus,preferences.sessionMinutes,shibaCount,imageTrainingPool,preferences,knee);
     return buildStrengthFlexibilityDay(day,focus,preferences.sessionMinutes,strengthCount,flexCount,strengthPools,preferences,knee);
   });

@@ -86,10 +86,19 @@ export type Weekday = "月" | "火" | "水" | "木" | "金" | "土" | "日";
 export type OffTrainingDayType = "シバカツの日" | "板操作イメージトレーニングの日" | "筋トレ＋柔軟の日" | "休み";
 export interface OffTrainingPlanItem {
   name: string; category: TrainingCategory; amount: string; purpose: string; caution: string;
+  difficulty?: number; menuCategory?: string; relatedSnowTrick?: string; description?: string; tip?: string; source?: "database" | "fallback";
 }
 export interface WeeklyOffTrainingDay {
   day: Weekday; dayType: OffTrainingDayType; title: string; focus: string[]; estimatedMinutes: number; items: OffTrainingPlanItem[];
 }
 export interface OffTrainingPlan {
   id: string; title: string; description: string; weeklyDays: number; sessionMinutes: number; weeklyPlan: WeeklyOffTrainingDay[];
+}
+export interface ShibakatsuTrick {
+  id: string; name: string; difficulty: number; category: string; relatedSnowTrick: string;
+  description: string; tips: string; cautions: string;
+}
+export interface SelectedShibakatsuMenu {
+  id: string; name: string; difficulty: number; category: string; relatedSnowTrick: string;
+  description: string; tips: string; cautions: string; score: number;
 }

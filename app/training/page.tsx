@@ -9,7 +9,7 @@ import PageHeader from "@/components/PageHeader";
 import SectionTitle from "@/components/SectionTitle";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
-import { generateOffTrainingPlan } from "@/lib/offTrainingPlanner";
+import { generateOffTrainingPlan } from "@/lib/shibakatsuPlan";
 import { initialTricks,trainings } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
 import type { OffTrainingPreferences,TrainingCategory } from "@/lib/types";
@@ -17,7 +17,7 @@ import type { OffTrainingPreferences,TrainingCategory } from "@/lib/types";
 const categories:{name:TrainingCategory;icon:typeof Dumbbell;color:string}[]=[{name:"シバカツ",icon:Footprints,color:"text-sky-500"},{name:"筋トレ",icon:Dumbbell,color:"text-orange-500"},{name:"柔軟",icon:Sparkles,color:"text-emerald-500"}];
 export default function TrainingPage(){
   const {user,loading}=useAuth();const [plan,refresh]=useSupabaseData(dataRepository.getOffTrainingPlan);const [rebuilding,setRebuilding]=useState(false);const [confirming,setConfirming]=useState(false);const [diagnosisDismissed,setDiagnosisDismissed]=useState(false);
-  async function complete(preferences:OffTrainingPreferences){if(!user)throw new Error("ログインが必要です");const next=generateOffTrainingPlan(preferences,user.id);await dataRepository.saveOffTrainingPlan(preferences,next);const saved=await dataRepository.getOffTrainingPlan();if(!saved)throw new Error("プランを保存できませんでした。SQL設定を確認してください。");await refresh();setRebuilding(false);setDiagnosisDismissed(false);}
+  async function complete(preferences:OffTrainingPreferences){if(!user)throw new Error("ログインが必要です");const next=await generateOffTrainingPlan(preferences,user.id);await dataRepository.saveOffTrainingPlan(preferences,next);const saved=await dataRepository.getOffTrainingPlan();if(!saved)throw new Error("プランを保存できませんでした。SQL設定を確認してください。");await refresh();setRebuilding(false);setDiagnosisDismissed(false);}
   function startRebuild(){setConfirming(false);setDiagnosisDismissed(false);setRebuilding(true);}
   function closeDiagnosis(){setRebuilding(false);setDiagnosisDismissed(true);}
   const showDiagnosis=Boolean(user&&plan!==undefined&&!diagnosisDismissed&&(plan===null||rebuilding));
