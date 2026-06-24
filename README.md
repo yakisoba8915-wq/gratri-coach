@@ -224,3 +224,12 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - 技追加は `app/api/tricks/create/route.ts` だけがservice roleで実行し、クライアントからのinsert / update / deleteはRLSで許可しません。
 - 初期20技とDB追加技は辞典上で統合表示され、同名技は追加できません。
 - ログイン中に追加した場合は `created_by` にユーザーIDを保存します。未ログインの場合は `null` です。
+
+## シバカツ用トリック一覧
+
+- トリック画面上部で「通常トリック」と「シバカツトリック」を切り替えられます。
+- 既存の初期20技と通常追加技は `snow`、シバカツ専用メニューは `shibakatsu` として分離します。
+- 既存環境ではSQL Editorで `supabase/add-trick-type.sql` を実行し、`trick_type`、`related_snow_trick`、`cautions` を追加してください。
+- 同名重複は `name + trick_type` 単位で防止します。
+- シバカツ技も既存と同じ管理パスワード・API Route・service role経由でのみ追加できます。
+- シバカツカードには難易度、系統、関連する雪上トリック、説明、練習のコツ、注意点を表示します。

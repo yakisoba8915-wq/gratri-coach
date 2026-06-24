@@ -13,6 +13,7 @@ export interface Trick {
   relatedTrainings: string[]; referenceVideos: string[]; imageUrls: string[];
   masteryStatus: MasteryStatus; favorite: boolean;
   takeoffType?: string; spinDirection?: string; createdBy?: string | null; isOfficial?: boolean;
+  trickType?: TrainingType; relatedSnowTrick?: string; cautions?: string;
 }
 export type TrainingType = "snow" | "shibakatsu";
 export interface PracticeLog {

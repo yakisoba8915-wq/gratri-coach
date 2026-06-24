@@ -11,7 +11,7 @@ type DataKey=keyof typeof baseKeys;
 interface PracticeLogRow {id:string;user_id:string;date:string;training_type?:PracticeLog["trainingType"];resort_name:string;trick_id:string;success_count:number;fail_count:number;memo:string;self_analysis:string;weak_point:string;next_task:string;snow_condition:PracticeLog["snowCondition"];video_urls:string[];shibakatsu_menu?:string|null;duration_minutes?:number|null;reps?:number|null;sets?:number|null;}
 interface GoalRow {id:string;user_id:string;season:string;type:Goal["type"];trick_id:string;target_rate:number|null;completed:boolean;}
 interface ProfileRow {id:string;user_id:string;display_name:string;stance:Profile["stance"];avatar_url:string|null;avatar_path:string|null;plan_type?:PlanType|null;trick_preferences:Record<string,Pick<Trick,"masteryStatus"|"favorite">>|null;}
-interface PublicTrickRow {id:string;name:string;difficulty:number;category:string;takeoff_type:string;spin_direction:string;description:string;tips:string;prerequisite:string;created_by:string|null;is_official:boolean;}
+interface PublicTrickRow {id:string;name:string;difficulty:number;category:string;takeoff_type:string;spin_direction:string;description:string;tips:string;prerequisite:string;trick_type:PracticeLog["trainingType"];related_snow_trick:string;cautions:string;created_by:string|null;is_official:boolean;}
 const emptyProfile:Profile={displayName:"",stance:"",avatarUrl:null,avatarPath:null,planType:"free"};
 
 const localKey=(key:DataKey,userId?:string)=>userId?`${baseKeys[key]}:${userId}`:baseKeys[key];
@@ -42,7 +42,7 @@ async function replaceGoals(rows:GoalRow[],userId:string):Promise<void>{if(!supa
 function normalizeTrickName(value:string):string{return value.trim().toLocaleLowerCase("ja-JP");}
 async function getPublicDatabaseTricks():Promise<Trick[]>{
   if(!supabase)return [];
-  const {data,error}=await supabase.from("tricks").select("id,name,difficulty,category,takeoff_type,spin_direction,description,tips,prerequisite,created_by,is_official").order("created_at",{ascending:true});
+  const {data,error}=await supabase.from("tricks").select("id,name,difficulty,category,takeoff_type,spin_direction,description,tips,prerequisite,trick_type,related_snow_trick,cautions,created_by,is_official").order("created_at",{ascending:true});
   if(error)throw error;
   const rows=(data??[]) as PublicTrickRow[];
   const nameToId=new Map<string,string>();
@@ -55,39 +55,42 @@ async function getPublicDatabaseTricks():Promise<Trick[]>{
       id:row.id,nameJa:row.name,nameEn:row.name,category:row.category,difficulty:row.difficulty,
       description:row.description,howTo:row.tips?[row.tips]:[],commonMistakes:[],prerequisites,
       relatedTrainings:[],referenceVideos:[],imageUrls:[],masteryStatus:masteryStatuses[0],favorite:false,
-      takeoffType:row.takeoff_type,spinDirection:row.spin_direction,createdBy:row.created_by,isOfficial:row.is_official,
+      takeoffType:row.takeoff_type,spinDirection:row.spin_direction,trickType:normalizeTrainingType(row.trick_type),
+      relatedSnowTrick:row.related_snow_trick??"",cautions:row.cautions??"",createdBy:row.created_by,isOfficial:row.is_official,
     };
   });
 }
 function mergeTricks(databaseTricks:Trick[]):Trick[]{
   const seen=new Set<string>();
   return [...initialTricks,...databaseTricks].filter((trick)=>{
-    const name=normalizeTrickName(trick.nameJa);
-    if(seen.has(name))return false;
-    seen.add(name);
+    const key=`${trick.trickType??"snow"}:${normalizeTrickName(trick.nameJa)}`;
+    if(seen.has(key))return false;
+    seen.add(key);
     return true;
   });
 }
+async function loadAllTricks():Promise<Trick[]>{
+  const userId=await userIdOrNull();
+  let combined=initialTricks;
+  if(supabase){
+    try{combined=mergeTricks(await getPublicDatabaseTricks());}
+    catch(error){reportFallback("getPublicTricks",error);}
+  }
+  if(!userId||!supabase)return combined;
+  const fallback=readLocal("tricks",combined,userId);
+  try{
+    const {data,error}=await supabase.from("profiles").select("trick_preferences").eq("user_id",userId).maybeSingle();
+    if(error)throw error;
+    const preferences=(data?.trick_preferences??{}) as ProfileRow["trick_preferences"];
+    const tricks=combined.map((trick)=>({...trick,...preferences?.[trick.id]}));
+    writeLocal("tricks",tricks,userId,false);
+    return tricks;
+  }catch(error){reportFallback("getTricks",error);return fallback;}
+}
 
 export const dataRepository={
-  async getTricks():Promise<Trick[]>{
-    const userId=await userIdOrNull();
-    let combined=initialTricks;
-    if(supabase){
-      try{combined=mergeTricks(await getPublicDatabaseTricks());}
-      catch(error){reportFallback("getPublicTricks",error);}
-    }
-    if(!userId||!supabase)return combined;
-    const fallback=readLocal("tricks",combined,userId);
-    try{
-      const {data,error}=await supabase.from("profiles").select("trick_preferences").eq("user_id",userId).maybeSingle();
-      if(error)throw error;
-      const preferences=(data?.trick_preferences??{}) as ProfileRow["trick_preferences"];
-      const tricks=combined.map((trick)=>({...trick,...preferences?.[trick.id]}));
-      writeLocal("tricks",tricks,userId,false);
-      return tricks;
-    }catch(error){reportFallback("getTricks",error);return fallback;}
-  },
+  async getTricks():Promise<Trick[]>{return (await loadAllTricks()).filter((trick)=>(trick.trickType??"snow")==="snow");},
+  async getAllTricks():Promise<Trick[]>{return loadAllTricks();},
   async saveTricks(tricks:Trick[]):Promise<void>{const userId=await userIdOrNull();writeLocal("tricks",tricks,userId??undefined);if(!userId||!supabase)return;try{const profile=readLocal("profile",initialProfile,userId);const {error}=await supabase.from("profiles").upsert({id:userId,user_id:userId,display_name:profile.displayName,stance:profile.stance,trick_preferences:trickPreferences(tricks)},{onConflict:"user_id"});if(error)throw error;}catch(error){reportFallback("saveTricks",error);}},
   async getLogs():Promise<PracticeLog[]>{const userId=await userIdOrNull();const fallback=readLocal("logs",initialPracticeLogs,userId??undefined).map(normalizeLog);if(!userId||!supabase)return fallback;try{const {data,error}=await supabase.from("practice_logs").select("*").eq("user_id",userId).order("date",{ascending:false});if(error)throw error;const logs=(data as PracticeLogRow[]).map(fromLogRow);writeLocal("logs",logs,userId,false);return logs;}catch(error){reportFallback("getLogs",error);return fallback;}},
   async saveLogs(logs:PracticeLog[]):Promise<void>{const userId=await userIdOrNull();const normalizedLogs=logs.map(normalizeLog);writeLocal("logs",normalizedLogs,userId??undefined);if(!userId)return;try{await replacePracticeLogs(normalizedLogs.map((log)=>toLogRow(log,userId)),userId);}catch(error){reportFallback("saveLogs",error);}},
