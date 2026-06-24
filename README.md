@@ -214,3 +214,13 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - タブごとの表示済み状態は `gratri_tab_tip_*_seen` のlocalStorageキーで管理します。
 - 初回起動チュートリアルやログイン促進モーダルが閉じた後に表示され、未ログインでも利用できます。
 - localStorageから該当キーを削除すると、次回アクセス時に再表示されます。
+
+## 技の手動追加
+
+- トリック画面の「技を追加」から、管理パスワード付きで新しい技を登録できます。
+- SQL Editorで `supabase/tricks.sql` を実行し、公開参照専用の `tricks` テーブルとRLSを追加してください。
+- VercelのEnvironment Variablesに `TRICK_ADMIN_PASSWORD` と `SUPABASE_SERVICE_ROLE_KEY` を設定してください。
+- `TRICK_ADMIN_PASSWORD` と `SUPABASE_SERVICE_ROLE_KEY` に `NEXT_PUBLIC_` を付けないでください。どちらもサーバー側API Routeだけで使用します。
+- 技追加は `app/api/tricks/create/route.ts` だけがservice roleで実行し、クライアントからのinsert / update / deleteはRLSで許可しません。
+- 初期20技とDB追加技は辞典上で統合表示され、同名技は追加できません。
+- ログイン中に追加した場合は `created_by` にユーザーIDを保存します。未ログインの場合は `null` です。
