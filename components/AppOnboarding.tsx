@@ -11,6 +11,8 @@ import ProfileSetupModal from "./ProfileSetupModal";
 
 const LOGIN_DISMISSED_KEY = "gratri-login-prompt-dismissed";
 const TUTORIAL_SEEN_KEY = "gratri_onboarding_seen";
+const APP_READY_EVENT = "gratri-app-onboarding-ready";
+const APP_READY_KEY = "gratri-app-onboarding-ready";
 
 export default function AppOnboarding() {
   const { user, loading } = useAuth();
@@ -24,6 +26,25 @@ export default function AppOnboarding() {
     setTutorialSeen(localStorage.getItem(TUTORIAL_SEEN_KEY) === "true");
     setBrowserStorageReady(true);
   }, []);
+
+  const appOnboardingComplete =
+    !loading &&
+    browserStorageReady &&
+    tutorialSeen &&
+    ((Boolean(user) && Boolean(profile?.displayName.trim()) && Boolean(profile?.stance)) ||
+      (!user && loginPromptDismissed));
+
+  useEffect(() => {
+    if (!appOnboardingComplete) {
+      sessionStorage.removeItem(APP_READY_KEY);
+      return;
+    }
+    sessionStorage.setItem(APP_READY_KEY, "true");
+    const timer = window.setTimeout(() => {
+      window.dispatchEvent(new Event(APP_READY_EVENT));
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [appOnboardingComplete]);
 
   function completeTutorial(): void {
     localStorage.setItem(TUTORIAL_SEEN_KEY, "true");
