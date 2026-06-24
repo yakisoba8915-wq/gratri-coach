@@ -59,6 +59,17 @@ export type AiFeatureType = "ai_chat" | "ai_advice" | "ai_video_analysis";
 export interface AiUsageStatus {
   featureType: AiFeatureType; planType: PlanType; used: number; limit: number | null; remaining: number | null; unlimited: boolean; limitReached: boolean;
 }
+export type FeedbackType = "不具合報告" | "改善要望" | "機能提案" | "その他";
+export type FeedbackTargetScreen = "ホーム" | "トリック" | "練習" | "オフトレ" | "AI対話" | "プロフィール" | "その他";
+export type FeedbackPriority = "低" | "中" | "高";
+export type FeedbackStatus = "open" | "reviewing" | "resolved" | "rejected";
+export interface UserFeedback {
+  id: string; userId: string; feedbackType: FeedbackType; targetScreen: FeedbackTargetScreen;
+  message: string; priority: FeedbackPriority; status: FeedbackStatus; createdAt: string;
+}
+export interface SubmitFeedbackInput {
+  feedbackType: FeedbackType; targetScreen: FeedbackTargetScreen; message: string; priority: FeedbackPriority;
+}
 export interface Profile { displayName: string; stance: Stance | ""; avatarUrl?: string | null; avatarPath?: string | null; planType?: PlanType; }
 export interface Recommendation { trick: Trick; reason: string; score: number; }
 

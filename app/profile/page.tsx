@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Camera, ChevronRight, ImagePlus, Save, Target, Trash2, Trees, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import AuthButton from "@/components/AuthButton";
+import FeedbackSection from "@/components/FeedbackSection";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
@@ -202,6 +203,7 @@ export default function ProfilePage() {
         </Link>
       </div>
 
+      <FeedbackSection isLoggedIn={Boolean(user)} />
       <AuthButton />
     </main>
   );
