@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Camera, ChevronRight, ImagePlus, Save, Target, Trash2, Trees, UserRound } from "lucide-react";
+import { Camera, ChevronRight, Save, Target, Trash2, Trees, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import FeedbackSection from "@/components/FeedbackSection";
@@ -125,50 +125,50 @@ export default function ProfilePage() {
     <main>
       <PageHeader title="プロフィール" eyebrow="MY PAGE" />
 
-      <div className="mb-5 flex items-center gap-4">
-        <div className="relative grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-200 to-blue-200 text-2xl font-black text-glacier">
-          {avatarUrl ? <img src={avatarUrl} alt="プロフィール画像" className="h-full w-full object-cover" /> : user ? initial : <UserRound size={30} />}
-          <span className="absolute bottom-1 right-1 grid h-7 w-7 place-items-center rounded-full bg-white text-glacier shadow-card">
+      <section className="card mb-5 !p-4">
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="relative grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-cyan-200 to-blue-200 text-2xl font-black text-glacier">
+            {avatarUrl ? <img src={avatarUrl} alt="プロフィール画像" className="h-full w-full object-cover" /> : user ? initial : <UserRound size={30} />}
+            <span className="absolute bottom-0.5 right-0.5 grid h-6 w-6 place-items-center rounded-full border-2 border-white bg-white text-glacier shadow-sm">
+              <Camera size={12} />
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-lg font-black">{user ? profile.displayName : ""}</h2>
+            <p className="mt-0.5 min-h-4 text-xs font-bold text-slate-400">{user && profile.stance ? `${profile.stance}スタンス` : ""}</p>
+            <p className="mt-1 text-[10px] font-bold text-slate-400">{user ? "jpg / jpeg / png / webp・最大5MB" : "ログインするとプロフィール画像を設定できます"}</p>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <label className={`inline-flex items-center justify-center gap-1.5 rounded-xl bg-ice px-3 py-2 text-xs font-black text-glacier ${user && !avatarUploading ? "cursor-pointer" : "pointer-events-none opacity-40"}`}>
             <Camera size={14} />
-          </span>
+            {profile.avatarPath ? "画像を変更" : "画像を追加"}
+            <input disabled={!user || avatarUploading} type="file" accept={acceptedAvatarTypes} className="hidden" onChange={(event) => chooseAvatar(event.target.files?.[0] ?? null)} />
+          </label>
+
+          {avatarFile && (
+            <button type="button" disabled={avatarUploading} onClick={uploadSelectedAvatar} className="inline-flex items-center justify-center rounded-xl bg-navy px-3 py-2 text-xs font-black text-white disabled:opacity-40">
+              {avatarUploading ? "アップロード中..." : "アップロード"}
+            </button>
+          )}
+
+          {profile.avatarPath && (
+            <button type="button" disabled={!user || avatarUploading} onClick={removeAvatar} className="inline-flex items-center gap-1 px-2 py-2 text-xs font-bold text-rose-500 disabled:opacity-40">
+              <Trash2 size={13} />
+              削除
+            </button>
+          )}
         </div>
-        <div>
-          <h2 className="min-h-7 text-xl font-black">{user ? profile.displayName : ""}</h2>
-          <p className="mt-1 min-h-4 text-xs font-bold text-slate-400">{user && profile.stance ? `${profile.stance}スタンス` : ""}</p>
-        </div>
-      </div>
+
+        {avatarFile && <p className="mt-2 min-w-0 truncate text-[11px] font-bold text-slate-400">選択中: {avatarFile.name}</p>}
+        {avatarError && <p className="mt-2 text-xs font-bold text-rose-500">{avatarError}</p>}
+      </section>
 
       <div className="mb-5 flex gap-3">
         <StatCard label="練習記録" value={logCount} suffix="件" />
         <StatCard label="完成トリック" value={completed} suffix="技" />
       </div>
-
-      <section className="card mb-4 grid gap-4">
-        <div>
-          <h2 className="font-black">プロフィール画像</h2>
-          <p className="mt-1 text-xs font-bold text-slate-400">{user ? "jpg / jpeg / png / webp、最大5MB" : "ログインするとプロフィール画像を設定できます"}</p>
-        </div>
-
-        <label className={`grid place-items-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm font-bold ${user ? "cursor-pointer text-slate-500" : "text-slate-300"}`}>
-          <ImagePlus className="mb-2 text-glacier" size={22} />
-          画像を選択
-          <input disabled={!user || avatarUploading} type="file" accept={acceptedAvatarTypes} className="hidden" onChange={(e) => chooseAvatar(e.target.files?.[0] ?? null)} />
-        </label>
-
-        {avatarFile && <p className="truncate rounded-2xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">選択中: {avatarFile.name}</p>}
-        {avatarUploading && <p className="text-sm font-bold text-glacier">アップロード中...</p>}
-        {avatarError && <p className="text-sm font-bold text-rose-500">{avatarError}</p>}
-
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" disabled={!user || !avatarFile || avatarUploading} onClick={uploadSelectedAvatar} className="btn-primary disabled:bg-slate-200 disabled:text-slate-400">
-            アップロード
-          </button>
-          <button type="button" disabled={!user || !profile.avatarPath || avatarUploading} onClick={removeAvatar} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-black text-rose-500 disabled:bg-slate-100 disabled:text-slate-300">
-            <Trash2 size={16} />
-            削除
-          </button>
-        </div>
-      </section>
 
       <section className="card mb-4 grid gap-4">
         <h2 className="font-black">基本情報</h2>
