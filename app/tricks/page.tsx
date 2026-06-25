@@ -1,6 +1,7 @@
 "use client";
 
-import { Grid2X2, List, Plus, Search, SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
+import { GitBranch, Grid2X2, List, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import AddTrickModal from "@/components/AddTrickModal";
 import PageHeader from "@/components/PageHeader";
@@ -78,10 +79,17 @@ export default function TricksPage() {
     <main>
       <div className="flex items-start justify-between gap-3">
         <PageHeader eyebrow="TRICK LIBRARY" title="トリック" />
-        <button type="button" onClick={() => setAddModalOpen(true)} className="btn-primary shrink-0 !px-3 !py-3 text-sm">
-          <Plus size={18} />
-          <span className="hidden sm:inline">{isShibakatsu ? "シバカツ技を追加" : "技を追加"}</span>
-        </button>
+        <div className="flex shrink-0 gap-2">
+          {!isShibakatsu && (
+            <Link href="/tree" aria-label="技ツリーを開く" className="grid h-12 w-12 place-items-center rounded-2xl bg-ice text-glacier">
+              <GitBranch size={19} />
+            </Link>
+          )}
+          <button type="button" onClick={() => setAddModalOpen(true)} className="btn-primary shrink-0 !px-3 !py-3 text-sm">
+            <Plus size={18} />
+            <span className="hidden sm:inline">{isShibakatsu ? "シバカツ技を追加" : "技を追加"}</span>
+          </button>
+        </div>
       </div>
 
       <div className="mb-5 grid grid-cols-2 rounded-2xl bg-slate-100 p-1">

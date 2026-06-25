@@ -1,16 +1,24 @@
 "use client";
 
-import { ArrowDown,CheckCircle2,Circle,CircleDot } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
+import TrickSkillTree from "@/components/TrickSkillTree";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
 
-export default function TreePage(){
-  const {user}=useAuth();
-  const [storedTricks]=useSupabaseData(dataRepository.getTricks);
-  const tricks=storedTricks??initialTricks;
-  const levels=[...new Set(tricks.map((t)=>t.difficulty))].sort((a,b)=>a-b);
-  return <main><PageHeader title="技ツリー" eyebrow="TRICK TREE" back="/tricks"/><p className="mb-5 text-sm leading-6 text-slate-500">基礎から高難度へ。前提技を確認しながら、次の一歩を選びましょう。</p><div className="space-y-3">{levels.map((level,index)=><div key={level}>{index>0&&<ArrowDown className="mx-auto mb-3 text-slate-300"/>}<section className="card"><p className="mb-3 text-xs font-black text-glacier">LEVEL {level}</p><div className="space-y-3">{tricks.filter((t)=>t.difficulty===level).map((trick)=>{const Icon=!user?Circle:trick.masteryStatus==="完成"?CheckCircle2:trick.masteryStatus==="未挑戦"?Circle:CircleDot;const prerequisiteNames=trick.prerequisites.map((id)=>tricks.find((t)=>t.id===id)?.nameJa).filter(Boolean);return <a href={`/tricks/${trick.id}`} key={trick.id} className="flex items-start gap-3 rounded-2xl bg-slate-50 p-3"><Icon size={19} className={`mt-0.5 shrink-0 ${user?"text-glacier":"text-slate-300"}`}/><div><p className="font-black">{trick.nameJa}</p>{prerequisiteNames.length>0&&<p className="mt-1 text-[11px] text-slate-400">前提：{prerequisiteNames.join("・")}</p>}</div></a>})}</div></section></div>)}</div></main>;
+export default function TreePage() {
+  const { user } = useAuth();
+  const [storedTricks] = useSupabaseData(dataRepository.getTricks);
+  const tricks = storedTricks ?? initialTricks;
+
+  return (
+    <main className="min-w-0">
+      <PageHeader title="技ツリー" eyebrow="TRICK SKILL TREE" back="/tricks" />
+      <p className="mb-5 text-sm leading-6 text-slate-500">
+        線でつながった前提技から順にたどって、次に練習する技を見つけましょう。
+      </p>
+      <TrickSkillTree tricks={tricks} showStatus={Boolean(user)} />
+    </main>
+  );
 }

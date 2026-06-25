@@ -56,7 +56,7 @@ async function getPublicDatabaseTricks():Promise<Trick[]>{
       description:row.description,howTo:row.tips?[row.tips]:[],commonMistakes:[],prerequisites,
       relatedTrainings:[],referenceVideos:[],imageUrls:[],masteryStatus:masteryStatuses[0],favorite:false,
       takeoffType:row.takeoff_type,spinDirection:row.spin_direction,trickType:normalizeTrainingType(row.trick_type),
-      relatedSnowTrick:row.related_snow_trick??"",cautions:row.cautions??"",createdBy:row.created_by,isOfficial:row.is_official,
+      relatedSnowTrick:row.related_snow_trick??"",cautions:row.cautions??"",prerequisiteText:row.prerequisite??"",createdBy:row.created_by,isOfficial:row.is_official,
     };
   });
 }
