@@ -132,13 +132,15 @@ export default function ProfilePage() {
               {avatarUrl ? <img src={avatarUrl} alt="プロフィール画像" className="h-full w-full object-cover" /> : user ? initial : <UserRound size={30} />}
             </div>
             <label
-              className={`absolute -bottom-1 -right-1 z-20 grid h-11 w-11 place-items-center rounded-full border-4 border-white bg-white text-glacier shadow-lg transition-transform duration-150 hover:scale-105 active:scale-95 ${
+              className={`absolute -bottom-1 -right-1 z-20 grid h-11 w-11 place-items-center rounded-full transition-transform duration-150 hover:scale-105 active:scale-95 ${
                 user && !avatarUploading ? "cursor-pointer" : "pointer-events-none opacity-50"
               }`}
               aria-label={profile.avatarPath ? "プロフィール画像を変更" : "プロフィール画像を追加"}
               title={profile.avatarPath ? "プロフィール画像を変更" : "プロフィール画像を追加"}
             >
-              <Camera size={20} strokeWidth={2.4} />
+              <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-white bg-white text-glacier shadow-md sm:h-9 sm:w-9">
+                <Camera className="h-[17px] w-[17px] sm:h-[18px] sm:w-[18px]" strokeWidth={2.3} />
+              </span>
               <input
                 disabled={!user || avatarUploading}
                 type="file"
