@@ -50,8 +50,8 @@ export default function PracticePage() {
       </div>
 
       {user && (
-        <div className="card mb-4 grid gap-2 !p-3 sm:grid-cols-3">
-          <label className="relative">
+        <div className="card mb-4 flex w-full max-w-full flex-col gap-2 overflow-hidden !p-3 sm:grid sm:grid-cols-3">
+          <label className="relative min-w-0 w-full max-w-full">
             <Search className="absolute left-3 top-3 text-slate-400" size={16} />
             <select aria-label="技名で絞り込み" className="field pl-9" value={trickId} onChange={(e) => setTrickId(e.target.value)}>
               <option value="all">すべての技</option>

@@ -98,10 +98,10 @@ export default function PracticeForm() {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <div className="card">
+    <form onSubmit={submit} className="box-border w-full max-w-full space-y-4 overflow-hidden">
+      <div className="card flex flex-col">
         <p className="mb-3 text-xs font-bold tracking-[.16em] text-glacier">PRACTICE TYPE</p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid min-w-0 w-full max-w-full grid-cols-1 gap-2 min-[360px]:grid-cols-2">
           {[
             ["snow", "ゲレンデでの滑走"],
             ["shibakatsu", "シバカツ練習"],
@@ -113,7 +113,7 @@ export default function PracticeForm() {
         </div>
       </div>
 
-      <div className="card grid gap-4">
+      <div className="card flex flex-col gap-4">
         <label className="text-sm font-bold">
           日付 <span className="text-rose-500">*</span>
           <input type="date" required className="field mt-2" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -160,7 +160,7 @@ export default function PracticeForm() {
         )}
 
         {trainingType === "shibakatsu" && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid min-w-0 w-full max-w-full grid-cols-1 gap-3 sm:grid-cols-3">
             <label className="text-sm font-bold">
               実施時間
               <input type="number" min="0" className="field mt-2" value={durationMinutes} onChange={(e) => setDurationMinutes(Math.max(0, Number(e.target.value)))} />
@@ -177,9 +177,9 @@ export default function PracticeForm() {
         )}
       </div>
 
-      <div className="card">
+      <div className="card flex flex-col">
         <h2 className="mb-3 font-black">トライ回数</h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 w-full max-w-full grid-cols-1 gap-3 min-[360px]:grid-cols-2">
           <label className="text-sm font-bold text-emerald-600">
             成功回数
             <input type="number" min="0" className="field mt-2" value={successCount} onChange={(e) => setSuccessCount(Math.max(0, Number(e.target.value)))} />
@@ -191,7 +191,7 @@ export default function PracticeForm() {
         </div>
       </div>
 
-      <div className="card grid gap-4">
+      <div className="card flex flex-col gap-4">
         <label className="text-sm font-bold">
           メモ
           <textarea className="field mt-2 min-h-20" value={memo} onChange={(e) => setMemo(e.target.value)} />
@@ -212,7 +212,7 @@ export default function PracticeForm() {
 
       <PracticeVideoUploader ref={videoUploaderRef} practiceLogId={logId} trickId={trickId} />
 
-      <div className="card">
+      <div className="card flex flex-col">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-black">動画URL</h2>
           <button type="button" onClick={() => setVideoUrls([...videoUrls, ""])} className="text-xs font-bold text-glacier">
@@ -221,8 +221,8 @@ export default function PracticeForm() {
         </div>
         <div className="space-y-2">
           {videoUrls.map((url, index) => (
-            <div key={index} className="flex gap-2">
-              <input type="url" className="field" placeholder="https://..." value={url} onChange={(e) => setVideoUrls(videoUrls.map((value, valueIndex) => (valueIndex === index ? e.target.value : value)))} />
+            <div key={index} className="flex min-w-0 w-full max-w-full gap-2">
+              <input type="url" className="field min-w-0 flex-1" placeholder="https://..." value={url} onChange={(e) => setVideoUrls(videoUrls.map((value, valueIndex) => (valueIndex === index ? e.target.value : value)))} />
               {videoUrls.length > 1 && (
                 <button type="button" aria-label="削除" onClick={() => setVideoUrls(videoUrls.filter((_, valueIndex) => valueIndex !== index))} className="rounded-xl px-2 text-slate-400">
                   <Trash2 size={18} />

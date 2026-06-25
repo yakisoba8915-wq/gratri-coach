@@ -74,7 +74,7 @@ const PracticeVideoUploader = forwardRef<PracticeVideoUploaderHandle, PracticeVi
   }));
 
   return (
-    <div className="card">
+    <div className="card flex w-full max-w-full flex-col overflow-hidden">
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h2 className="font-black">動画を追加</h2>
@@ -91,8 +91,8 @@ const PracticeVideoUploader = forwardRef<PracticeVideoUploaderHandle, PracticeVi
       {files.length > 0 && (
         <div className="mt-3 space-y-2">
           {files.map((file, index) => (
-            <div key={`${file.name}-${file.lastModified}-${index}`} className="flex items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2 text-xs font-bold text-slate-500">
-              <span className="truncate">{file.name}</span>
+            <div key={`${file.name}-${file.lastModified}-${index}`} className="flex min-w-0 w-full max-w-full items-center justify-between gap-2 overflow-hidden rounded-2xl bg-white px-3 py-2 text-xs font-bold text-slate-500">
+              <span className="min-w-0 flex-1 truncate">{file.name}</span>
               <button type="button" aria-label="動画を削除" disabled={uploading} onClick={() => setFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))} className="text-slate-400 disabled:opacity-40">
                 <Trash2 size={16} />
               </button>
