@@ -127,11 +127,26 @@ export default function ProfilePage() {
 
       <section className="card mb-5 !p-4">
         <div className="flex min-w-0 items-center gap-4">
-          <div className="relative grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-cyan-200 to-blue-200 text-2xl font-black text-glacier">
-            {avatarUrl ? <img src={avatarUrl} alt="プロフィール画像" className="h-full w-full object-cover" /> : user ? initial : <UserRound size={30} />}
-            <span className="absolute bottom-0.5 right-0.5 grid h-6 w-6 place-items-center rounded-full border-2 border-white bg-white text-glacier shadow-sm">
-              <Camera size={12} />
-            </span>
+          <div className="relative h-20 w-20 shrink-0 overflow-visible">
+            <div className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-gradient-to-br from-cyan-200 to-blue-200 text-2xl font-black text-glacier">
+              {avatarUrl ? <img src={avatarUrl} alt="プロフィール画像" className="h-full w-full object-cover" /> : user ? initial : <UserRound size={30} />}
+            </div>
+            <label
+              className={`absolute -bottom-1 -right-1 z-20 grid h-11 w-11 place-items-center rounded-full border-4 border-white bg-white text-glacier shadow-lg transition-transform duration-150 hover:scale-105 active:scale-95 ${
+                user && !avatarUploading ? "cursor-pointer" : "pointer-events-none opacity-50"
+              }`}
+              aria-label={profile.avatarPath ? "プロフィール画像を変更" : "プロフィール画像を追加"}
+              title={profile.avatarPath ? "プロフィール画像を変更" : "プロフィール画像を追加"}
+            >
+              <Camera size={20} strokeWidth={2.4} />
+              <input
+                disabled={!user || avatarUploading}
+                type="file"
+                accept={acceptedAvatarTypes}
+                className="hidden"
+                onChange={(event) => chooseAvatar(event.target.files?.[0] ?? null)}
+              />
+            </label>
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-lg font-black">{user ? profile.displayName : ""}</h2>
