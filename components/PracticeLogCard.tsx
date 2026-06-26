@@ -2,10 +2,12 @@
 
 import { Clock, ExternalLink, MapPin, Repeat } from "lucide-react";
 import { calculateSuccessRate, formatDate } from "@/lib/calculations";
+import { formatOptionalTrickName } from "@/lib/trickDisplay";
 import type { PracticeLog, Trick } from "@/lib/types";
 import PracticeVideoList from "@/components/PracticeVideoList";
+import type { SelectedTrickDisplayStance } from "@/lib/trickStance";
 
-export default function PracticeLogCard({ log, trick }: { log: PracticeLog; trick?: Trick }) {
+export default function PracticeLogCard({ log, trick, selectedStance = "regular" }: { log: PracticeLog; trick?: Trick; selectedStance?: SelectedTrickDisplayStance }) {
   const rate = calculateSuccessRate(log.successCount, log.failCount);
   const isShibakatsu = (log.trainingType ?? "snow") === "shibakatsu";
 
@@ -19,8 +21,8 @@ export default function PracticeLogCard({ log, trick }: { log: PracticeLog; tric
               {isShibakatsu ? "シバカツ" : "ゲレンデ"}
             </span>
           </div>
-          <h3 className="mt-1 truncate text-lg font-black">{isShibakatsu && log.shibakatsuMenu ? log.shibakatsuMenu : trick?.nameJa ?? "不明な技"}</h3>
-          <p className="mt-1 text-xs font-bold text-slate-400">{isShibakatsu ? `関連：${trick?.nameJa ?? "未設定"}` : trick?.nameJa}</p>
+          <h3 className="mt-1 truncate text-lg font-black">{isShibakatsu && log.shibakatsuMenu ? log.shibakatsuMenu : formatOptionalTrickName(trick?.nameJa, selectedStance, "不明な技")}</h3>
+          <p className="mt-1 text-xs font-bold text-slate-400">{isShibakatsu ? `関連：${formatOptionalTrickName(trick?.nameJa, selectedStance)}` : formatOptionalTrickName(trick?.nameJa, selectedStance, "")}</p>
           {!isShibakatsu && log.resortName && (
             <p className="mt-1 flex items-center gap-1 text-xs text-slate-400">
               <MapPin size={12} />

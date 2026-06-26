@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
+import { formatTrickName } from "@/lib/trickDisplay";
 import { snowConditions, type PracticeLog, type SnowCondition, type TrainingType } from "@/lib/types";
 import PracticeVideoUploader, { type PracticeVideoUploaderHandle } from "@/components/PracticeVideoUploader";
 
@@ -18,6 +20,7 @@ export default function PracticeForm() {
   const router = useRouter();
   const videoUploaderRef = useRef<PracticeVideoUploaderHandle>(null);
   const [storedTricks] = useSupabaseData(dataRepository.getTricks);
+  const [selectedStance] = useSelectedTrickStance();
   const tricks = storedTricks ?? initialTricks;
   const [logId] = useState(() => `log-${Date.now()}`);
 
@@ -142,7 +145,7 @@ export default function PracticeForm() {
             <option value="">選択してください</option>
             {tricks.map((trick) => (
               <option key={trick.id} value={trick.id}>
-                {trick.nameJa}
+                {formatTrickName(trick.nameJa, selectedStance)}
               </option>
             ))}
           </select>

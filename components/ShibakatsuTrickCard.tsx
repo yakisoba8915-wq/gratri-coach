@@ -1,4 +1,5 @@
 import { AlertTriangle, Link2, Lightbulb } from "lucide-react";
+import { formatTrickName } from "@/lib/trickDisplay";
 import { selectedStanceLabels, trickStanceLabels } from "@/lib/trickStance";
 import type { Trick } from "@/lib/types";
 import type { SelectedTrickDisplayStance } from "@/lib/trickStance";
@@ -11,7 +12,7 @@ export default function ShibakatsuTrickCard({ trick, selectedStance = "regular" 
           Lv.{trick.difficulty}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-black">{trick.nameJa}</h3>
+          <h3 className="font-black">{formatTrickName(trick.nameJa, selectedStance)}</h3>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">{trick.category}</span>
             <span className="inline-flex rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">対応: {trickStanceLabels[trick.stance ?? "both"]}</span>
@@ -23,7 +24,7 @@ export default function ShibakatsuTrickCard({ trick, selectedStance = "regular" 
       {trick.relatedSnowTrick && (
         <p className="mt-4 flex items-start gap-2 rounded-2xl bg-ice px-3 py-2 text-xs font-bold leading-5 text-glacier">
           <Link2 className="mt-0.5 shrink-0" size={14} />
-          関連する雪上トリック：{trick.relatedSnowTrick}
+          関連する雪上トリック：{formatTrickName(trick.relatedSnowTrick, selectedStance)}
         </p>
       )}
       {trick.description && <p className="mt-4 text-sm leading-6 text-slate-600">{trick.description}</p>}

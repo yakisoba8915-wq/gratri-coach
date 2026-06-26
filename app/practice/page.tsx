@@ -6,9 +6,11 @@ import { useMemo, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import PracticeLogCard from "@/components/PracticeLogCard";
 import { useAuth } from "@/hooks/useAuth";
+import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
+import { formatTrickName } from "@/lib/trickDisplay";
 import type { TrainingType } from "@/lib/types";
 
 type TrainingTypeFilter = "all" | TrainingType;
@@ -20,6 +22,7 @@ export default function PracticePage() {
   const { user } = useAuth();
   const [storedLogs] = useSupabaseData(dataRepository.getLogs);
   const [storedTricks] = useSupabaseData(dataRepository.getTricks);
+  const [selectedStance] = useSelectedTrickStance();
   const logs = user ? (storedLogs ?? []) : [];
   const tricks = storedTricks ?? initialTricks;
   const [trickId, setTrickId] = useState("all");
@@ -65,7 +68,7 @@ export default function PracticePage() {
               <option value="all">すべての技</option>
               {tricks.map((trick) => (
                 <option key={trick.id} value={trick.id}>
-                  {trick.nameJa}
+                  {formatTrickName(trick.nameJa, selectedStance)}
                 </option>
               ))}
             </select>
@@ -94,7 +97,7 @@ export default function PracticePage() {
 
       <div className="space-y-3">
         {filtered.map((log) => (
-          <PracticeLogCard key={log.id} log={log} trick={tricks.find((trick) => trick.id === log.trickId)} />
+          <PracticeLogCard key={log.id} log={log} trick={tricks.find((trick) => trick.id === log.trickId)} selectedStance={selectedStance} />
         ))}
         {filtered.length === 0 && (
           <div className="card py-12 text-center text-sm text-slate-400">

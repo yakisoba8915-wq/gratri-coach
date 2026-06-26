@@ -2,27 +2,25 @@
 
 import Link from "next/link";
 import { GitBranch, Grid2X2, List, Plus, Search, SlidersHorizontal } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import AddTrickModal from "@/components/AddTrickModal";
 import PageHeader from "@/components/PageHeader";
 import ShibakatsuTrickCard from "@/components/ShibakatsuTrickCard";
 import TrickList from "@/components/TrickList";
 import { useAuth } from "@/hooks/useAuth";
+import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
-import { profileStanceToSelectedStance, type SelectedTrickDisplayStance } from "@/lib/trickStance";
 import { masteryStatuses } from "@/lib/types";
 import type { TrainingType } from "@/lib/types";
 
 export default function TricksPage() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const [stored, refresh] = useSupabaseData(dataRepository.getAllTricks);
-  const [profile] = useSupabaseData(dataRepository.getProfile);
   const tricks = stored ?? initialTricks;
   const [activeType, setActiveType] = useState<TrainingType>("snow");
-  const [selectedStance, setSelectedStance] = useState<SelectedTrickDisplayStance>("regular");
-  const [stanceInitialized, setStanceInitialized] = useState(false);
+  const [selectedStance, setSelectedStance] = useSelectedTrickStance();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [difficulty, setDifficulty] = useState("all");
@@ -36,20 +34,6 @@ export default function TricksPage() {
     () => tricks.filter((trick) => (trick.trickType ?? "snow") === activeType),
     [tricks, activeType],
   );
-  useEffect(() => {
-    if (stanceInitialized) return;
-    if (loading) return;
-    if (!user) {
-      setSelectedStance("regular");
-      setStanceInitialized(true);
-      return;
-    }
-    if (profile) {
-      setSelectedStance(profileStanceToSelectedStance(profile.stance));
-      setStanceInitialized(true);
-    }
-  }, [loading, profile, stanceInitialized, user]);
-
   const categories = [...new Set(typeTricks.map((trick) => trick.category))];
   const filtered = useMemo(
     () =>

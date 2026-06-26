@@ -3,33 +3,16 @@
 import PageHeader from "@/components/PageHeader";
 import TrickSkillTree from "@/components/TrickSkillTree";
 import { useAuth } from "@/hooks/useAuth";
+import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
-import { profileStanceToSelectedStance, type SelectedTrickDisplayStance } from "@/lib/trickStance";
-import { useEffect, useState } from "react";
 
 export default function TreePage() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const [storedTricks] = useSupabaseData(dataRepository.getTricks);
-  const [profile] = useSupabaseData(dataRepository.getProfile);
-  const [selectedStance, setSelectedStance] = useState<SelectedTrickDisplayStance>("regular");
-  const [stanceInitialized, setStanceInitialized] = useState(false);
+  const [selectedStance, setSelectedStance] = useSelectedTrickStance();
   const tricks = storedTricks ?? initialTricks;
-
-  useEffect(() => {
-    if (stanceInitialized) return;
-    if (loading) return;
-    if (!user) {
-      setSelectedStance("regular");
-      setStanceInitialized(true);
-      return;
-    }
-    if (profile) {
-      setSelectedStance(profileStanceToSelectedStance(profile.stance));
-      setStanceInitialized(true);
-    }
-  }, [loading, profile, stanceInitialized, user]);
 
   return (
     <main className="min-w-0">

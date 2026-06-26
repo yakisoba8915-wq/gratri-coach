@@ -6,8 +6,10 @@ import AIAdviceCard from "@/components/AIAdviceCard";
 import SectionTitle from "@/components/SectionTitle";
 import TrickCard from "@/components/TrickCard";
 import { useAuth } from "@/hooks/useAuth";
+import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { generateAdvice } from "@/lib/aiAdvisor";
+import { formatTrickName } from "@/lib/trickDisplay";
 import { initialTricks } from "@/lib/mockData";
 import { getRecommendations, getTrendingTrick } from "@/lib/recommendations";
 import { dataRepository } from "@/lib/storage";
@@ -15,6 +17,7 @@ import { getPracticeVideosForCurrentUser } from "@/lib/videoStorage";
 
 export default function HomePage() {
   const { user } = useAuth();
+  const [selectedStance] = useSelectedTrickStance();
   const [tricks] = useSupabaseData(dataRepository.getTricks);
   const [logs] = useSupabaseData(dataRepository.getLogs);
   const [goals] = useSupabaseData(dataRepository.getGoals);
@@ -52,16 +55,16 @@ export default function HomePage() {
         </div>
       </Link>
 
-      {advice && <AIAdviceCard advice={advice} tricks={currentTricks} logs={currentLogs} videos={currentVideos} goals={goals ?? []} profile={profile} offTrainingPlan={offTrainingPlan} />}
+      {advice && <AIAdviceCard advice={advice} tricks={currentTricks} logs={currentLogs} videos={currentVideos} goals={goals ?? []} profile={profile} offTrainingPlan={offTrainingPlan} selectedStance={selectedStance} />}
 
       <section className="mb-8">
         <SectionTitle title="今日のおすすめ" subtitle="いま伸ばしたい3トリック" href="/tricks" />
         <div className="space-y-2">
           {recommendations.map(({ trick, reason }, index) => (
-            <Link key={trick.id} href={`/tricks/${trick.id}`} className="card flex items-center gap-3 !rounded-2xl !p-3">
+            <Link key={trick.id} href={`/tricks/${trick.id}?stance=${selectedStance}`} className="card flex items-center gap-3 !rounded-2xl !p-3">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-ice text-sm font-black text-glacier">{index + 1}</span>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-black">{trick.nameJa}</p>
+                <p className="truncate font-black">{formatTrickName(trick.nameJa, selectedStance)}</p>
                 <p className="text-xs text-slate-400">{reason}</p>
               </div>
               <ArrowRight size={17} className="text-slate-300" />
@@ -73,10 +76,10 @@ export default function HomePage() {
       </section>
 
       <div className="mb-8 grid grid-cols-2 gap-3">
-        <Link href={trending ? `/tricks/${trending.id}` : user ? "/tricks" : "/profile"} className="card">
+        <Link href={trending ? `/tricks/${trending.id}?stance=${selectedStance}` : user ? "/tricks" : "/profile"} className="card">
           <Flame size={20} className="mb-3 text-orange-500" />
           <p className="text-xs font-bold text-slate-400">最近伸びている技</p>
-          <p className="mt-1 font-black">{trending?.nameJa ?? "—"}</p>
+          <p className="mt-1 font-black">{trending ? formatTrickName(trending.nameJa, selectedStance) : "—"}</p>
         </Link>
         <Link href={user ? "/goals" : "/profile"} className="card">
           <Target size={20} className="mb-3 text-violet-500" />
@@ -88,7 +91,7 @@ export default function HomePage() {
       {trending && (
         <section>
           <SectionTitle title="ピックアップ" />
-          <TrickCard trick={trending} />
+          <TrickCard trick={trending} selectedStance={selectedStance} />
         </section>
       )}
     </main>

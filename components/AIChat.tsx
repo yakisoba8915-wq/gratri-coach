@@ -6,7 +6,9 @@ import { getRecentAiAdviceActions } from "@/lib/aiAdviceActions";
 import { buildTrickStatsForAi } from "@/lib/aiAdvisor";
 import { getAiCoachMessages, resetAiCoachMessages, saveAiCoachMessage } from "@/lib/aiCoachMemory";
 import { AI_USAGE_LIMIT_MESSAGE, getAiRequestHeaders, getAiUsageStatus } from "@/lib/aiUsageLimits";
+import { formatTextWithTrickNames } from "@/lib/trickDisplay";
 import type { AiCoachMessage, AiUsageStatus, Goal, OffTrainingPlan, PracticeLog, Profile, Trick } from "@/lib/types";
+import type { SelectedTrickDisplayStance } from "@/lib/trickStance";
 import { getRecentVideoAnalysisResults } from "@/lib/videoAnalysisStorage";
 
 type ChatRole = "user" | "assistant";
@@ -24,6 +26,7 @@ interface AIChatProps {
   goals: Goal[];
   offTrainingPlan: OffTrainingPlan | null;
   tricks: Trick[];
+  selectedStance?: SelectedTrickDisplayStance;
 }
 
 const welcomeMessage: ChatMessage = {
@@ -47,7 +50,7 @@ function toChatMessage(message: AiCoachMessage): ChatMessage | null {
   return { id: message.id, role: message.role, content: message.message };
 }
 
-export default function AIChat({ isLoggedIn, profile, practiceLogs, goals, offTrainingPlan, tricks }: AIChatProps) {
+export default function AIChat({ isLoggedIn, profile, practiceLogs, goals, offTrainingPlan, tricks, selectedStance = "regular" }: AIChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([welcomeMessage]);
   const [memoryMessages, setMemoryMessages] = useState<AiCoachMessage[]>([]);
   const [input, setInput] = useState("");
@@ -227,7 +230,7 @@ export default function AIChat({ isLoggedIn, profile, practiceLogs, goals, offTr
                 </div>
               )}
               <div className={`max-w-[82%] rounded-3xl px-4 py-3 text-sm font-bold leading-7 ${message.role === "user" ? "rounded-br-sm bg-navy text-white" : "rounded-bl-sm bg-slate-100 text-slate-700"}`}>
-                {message.content}
+                {formatTextWithTrickNames(message.content, tricks, selectedStance)}
               </div>
               {message.role === "user" && (
                 <div className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-slate-100">

@@ -3,12 +3,14 @@
 import AIChat from "@/components/AIChat";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
+import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
 
 export default function AIChatPage() {
   const { user } = useAuth();
+  const [selectedStance] = useSelectedTrickStance();
   const [profile] = useSupabaseData(dataRepository.getProfile);
   const [practiceLogs] = useSupabaseData(dataRepository.getLogs);
   const [goals] = useSupabaseData(dataRepository.getGoals);
@@ -26,6 +28,7 @@ export default function AIChatPage() {
         goals={user ? (goals ?? []) : []}
         offTrainingPlan={user ? (offTrainingPlan ?? null) : null}
         tricks={tricks ?? initialTricks}
+        selectedStance={selectedStance}
       />
     </main>
   );

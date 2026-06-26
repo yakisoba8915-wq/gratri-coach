@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Circle, GitBranch } from "lucide-react";
 import { initialTricks } from "@/lib/mockData";
+import { formatTrickName } from "@/lib/trickDisplay";
 import { selectedStanceLabels, trickStanceLabels } from "@/lib/trickStance";
 import type { MasteryStatus, Trick } from "@/lib/types";
 import type { SelectedTrickDisplayStance } from "@/lib/trickStance";
@@ -125,7 +126,7 @@ function TrickNode({ trick, showStatus, selectedStance }: { trick: Trick; showSt
           Lv.{trick.difficulty}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="break-words text-sm font-black leading-5">{trick.nameJa}</p>
+          <p className="break-words text-sm font-black leading-5">{formatTrickName(trick.nameJa, selectedStance)}</p>
           <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{trick.category} / 対応: {trickStanceLabels[trick.stance ?? "both"]}</p>
           <p className="mt-0.5 text-[10px] font-bold text-blue-500">{selectedStanceLabels[selectedStance]}</p>
         </div>
