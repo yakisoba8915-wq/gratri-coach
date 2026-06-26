@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { GitBranch, Grid2X2, List, Plus, Search, SlidersHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AddTrickModal from "@/components/AddTrickModal";
 import PageHeader from "@/components/PageHeader";
 import ShibakatsuTrickCard from "@/components/ShibakatsuTrickCard";
@@ -11,17 +11,18 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
-import { matchesTrickStance, type TrickStanceView } from "@/lib/trickStance";
+import { profileStanceToSelectedStance, type SelectedTrickDisplayStance } from "@/lib/trickStance";
 import { masteryStatuses } from "@/lib/types";
 import type { TrainingType } from "@/lib/types";
 
 export default function TricksPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [stored, refresh] = useSupabaseData(dataRepository.getAllTricks);
   const [profile] = useSupabaseData(dataRepository.getProfile);
   const tricks = stored ?? initialTricks;
   const [activeType, setActiveType] = useState<TrainingType>("snow");
-  const [stanceView, setStanceView] = useState<TrickStanceView>("own");
+  const [selectedStance, setSelectedStance] = useState<SelectedTrickDisplayStance>("regular");
+  const [stanceInitialized, setStanceInitialized] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [difficulty, setDifficulty] = useState("all");
@@ -35,14 +36,24 @@ export default function TricksPage() {
     () => tricks.filter((trick) => (trick.trickType ?? "snow") === activeType),
     [tricks, activeType],
   );
-  const stanceFilteredTricks = useMemo(
-    () => typeTricks.filter((trick) => matchesTrickStance(trick, user ? profile?.stance : "", stanceView)),
-    [typeTricks, user, profile?.stance, stanceView],
-  );
-  const categories = [...new Set(stanceFilteredTricks.map((trick) => trick.category))];
+  useEffect(() => {
+    if (stanceInitialized) return;
+    if (loading) return;
+    if (!user) {
+      setSelectedStance("regular");
+      setStanceInitialized(true);
+      return;
+    }
+    if (profile) {
+      setSelectedStance(profileStanceToSelectedStance(profile.stance));
+      setStanceInitialized(true);
+    }
+  }, [loading, profile, stanceInitialized, user]);
+
+  const categories = [...new Set(typeTricks.map((trick) => trick.category))];
   const filtered = useMemo(
     () =>
-      stanceFilteredTricks.filter((trick) => {
+      typeTricks.filter((trick) => {
         const matchesQuery = `${trick.nameJa} ${trick.nameEn}`.toLowerCase().includes(query.toLowerCase());
         const matchesDifficulty =
           difficulty === "all" ||
@@ -62,7 +73,7 @@ export default function TricksPage() {
           matchesUserFilters
         );
       }),
-    [stanceFilteredTricks, query, category, difficulty, status, favorites, user, activeType],
+    [typeTricks, query, category, difficulty, status, favorites, user, activeType],
   );
 
   function switchType(type: TrainingType): void {
@@ -109,11 +120,11 @@ export default function TricksPage() {
       </div>
 
       <div className="mb-4 grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
-        <button type="button" onClick={() => setStanceView("own")} className={`rounded-xl px-3 py-2.5 text-xs font-black transition ${stanceView === "own" ? "bg-white text-glacier shadow-sm" : "text-slate-400"}`}>
-          自分のスタンス向け
+        <button type="button" onClick={() => setSelectedStance("regular")} className={`rounded-xl px-3 py-2.5 text-xs font-black transition ${selectedStance === "regular" ? "bg-white text-glacier shadow-sm" : "text-slate-400"}`}>
+          レギュラー
         </button>
-        <button type="button" onClick={() => setStanceView("all")} className={`rounded-xl px-3 py-2.5 text-xs font-black transition ${stanceView === "all" ? "bg-white text-glacier shadow-sm" : "text-slate-400"}`}>
-          全スタンス
+        <button type="button" onClick={() => setSelectedStance("goofy")} className={`rounded-xl px-3 py-2.5 text-xs font-black transition ${selectedStance === "goofy" ? "bg-white text-glacier shadow-sm" : "text-slate-400"}`}>
+          グーフィー
         </button>
       </div>
 
@@ -171,7 +182,7 @@ export default function TricksPage() {
       {isShibakatsu ? (
         filtered.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            {filtered.map((trick) => <ShibakatsuTrickCard key={trick.id} trick={trick} />)}
+            {filtered.map((trick) => <ShibakatsuTrickCard key={trick.id} trick={trick} selectedStance={selectedStance} />)}
           </div>
         ) : typeTricks.length === 0 ? (
           <div className="card py-12 text-center text-sm leading-6 text-slate-500">
@@ -182,7 +193,7 @@ export default function TricksPage() {
           <div className="card py-12 text-center text-sm text-slate-500">条件に合うシバカツトリックがありません。</div>
         )
       ) : (
-        <TrickList tricks={filtered} view={view} showUserData={Boolean(user)} />
+        <TrickList tricks={filtered} view={view} showUserData={Boolean(user)} selectedStance={selectedStance} />
       )}
 
       <AddTrickModal

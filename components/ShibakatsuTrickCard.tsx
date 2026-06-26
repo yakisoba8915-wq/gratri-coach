@@ -1,8 +1,9 @@
 import { AlertTriangle, Link2, Lightbulb } from "lucide-react";
-import { trickStanceLabels } from "@/lib/trickStance";
+import { selectedStanceLabels, trickStanceLabels } from "@/lib/trickStance";
 import type { Trick } from "@/lib/types";
+import type { SelectedTrickDisplayStance } from "@/lib/trickStance";
 
-export default function ShibakatsuTrickCard({ trick }: { trick: Trick }) {
+export default function ShibakatsuTrickCard({ trick, selectedStance = "regular" }: { trick: Trick; selectedStance?: SelectedTrickDisplayStance }) {
   return (
     <article className="card">
       <div className="flex items-start gap-3">
@@ -13,7 +14,8 @@ export default function ShibakatsuTrickCard({ trick }: { trick: Trick }) {
           <h3 className="font-black">{trick.nameJa}</h3>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">{trick.category}</span>
-            <span className="inline-flex rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">{trickStanceLabels[trick.stance ?? "both"]}</span>
+            <span className="inline-flex rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">対応: {trickStanceLabels[trick.stance ?? "both"]}</span>
+            <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-600">{selectedStanceLabels[selectedStance]}</span>
           </div>
         </div>
       </div>

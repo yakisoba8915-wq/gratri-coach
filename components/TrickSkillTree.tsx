@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Circle, GitBranch } from "lucide-react";
 import { initialTricks } from "@/lib/mockData";
-import { trickStanceLabels } from "@/lib/trickStance";
+import { selectedStanceLabels, trickStanceLabels } from "@/lib/trickStance";
 import type { MasteryStatus, Trick } from "@/lib/types";
+import type { SelectedTrickDisplayStance } from "@/lib/trickStance";
 
 interface TreeNodeDefinition {
   id: string;
@@ -20,6 +21,7 @@ interface TreeSection {
 interface TrickSkillTreeProps {
   tricks: Trick[];
   showStatus?: boolean;
+  selectedStance?: SelectedTrickDisplayStance;
 }
 
 const sections: TreeSection[] = [
@@ -110,10 +112,10 @@ function buildDbChildren(tricks: Trick[]): Map<string, Trick[]> {
   return result;
 }
 
-function TrickNode({ trick, showStatus }: { trick: Trick; showStatus: boolean }) {
+function TrickNode({ trick, showStatus, selectedStance }: { trick: Trick; showStatus: boolean; selectedStance: SelectedTrickDisplayStance }) {
   return (
     <Link
-      href={`/tricks/${trick.id}`}
+      href={`/tricks/${trick.id}?stance=${selectedStance}`}
       className={`block min-w-0 rounded-2xl border px-3 py-3 shadow-sm transition active:scale-[.98] ${
         showStatus ? statusStyles[trick.masteryStatus] : "border-slate-200 bg-white"
       }`}
@@ -124,7 +126,8 @@ function TrickNode({ trick, showStatus }: { trick: Trick; showStatus: boolean })
         </span>
         <div className="min-w-0 flex-1">
           <p className="break-words text-sm font-black leading-5">{trick.nameJa}</p>
-          <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{trick.category} / {trickStanceLabels[trick.stance ?? "both"]}</p>
+          <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{trick.category} / 対応: {trickStanceLabels[trick.stance ?? "both"]}</p>
+          <p className="mt-0.5 text-[10px] font-bold text-blue-500">{selectedStanceLabels[selectedStance]}</p>
         </div>
       </div>
     </Link>
@@ -136,12 +139,14 @@ function TreeBranch({
   trickMap,
   dbChildren,
   showStatus,
+  selectedStance,
   path,
 }: {
   definition: TreeNodeDefinition;
   trickMap: Map<string, Trick>;
   dbChildren: Map<string, Trick[]>;
   showStatus: boolean;
+  selectedStance: SelectedTrickDisplayStance;
   path: Set<string>;
 }) {
   const trick = trickMap.get(definition.id);
@@ -158,7 +163,7 @@ function TreeBranch({
 
   return (
     <div className="min-w-0">
-      <TrickNode trick={trick} showStatus={showStatus} />
+      <TrickNode trick={trick} showStatus={showStatus} selectedStance={selectedStance} />
       {children.length > 0 && (
         <div className="relative ml-4 mt-2 space-y-2 border-l-2 border-sky-200 pl-5">
           {children.map((child) => (
@@ -168,6 +173,7 @@ function TreeBranch({
                 trickMap={trickMap}
                 dbChildren={dbChildren}
                 showStatus={showStatus}
+                selectedStance={selectedStance}
                 path={nextPath}
               />
             </div>
@@ -178,7 +184,7 @@ function TreeBranch({
   );
 }
 
-export default function TrickSkillTree({ tricks, showStatus = false }: TrickSkillTreeProps) {
+export default function TrickSkillTree({ tricks, showStatus = false, selectedStance = "regular" }: TrickSkillTreeProps) {
   const snowTricks = tricks.filter((trick) => (trick.trickType ?? "snow") === "snow");
   const trickMap = new Map(snowTricks.map((trick) => [trick.id, trick]));
   const dbChildren = buildDbChildren(snowTricks);
@@ -211,6 +217,7 @@ export default function TrickSkillTree({ tricks, showStatus = false }: TrickSkil
                   trickMap={trickMap}
                   dbChildren={dbChildren}
                   showStatus={showStatus}
+                  selectedStance={selectedStance}
                   path={new Set()}
                 />
               ))}
@@ -230,7 +237,7 @@ export default function TrickSkillTree({ tricks, showStatus = false }: TrickSkil
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {unresolved.map((trick) => (
-              <TrickNode key={trick.id} trick={trick} showStatus={showStatus} />
+              <TrickNode key={trick.id} trick={trick} showStatus={showStatus} selectedStance={selectedStance} />
             ))}
           </div>
         </section>

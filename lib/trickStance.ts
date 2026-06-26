@@ -1,4 +1,6 @@
-import type { Profile, Trick, TrickStance } from "./types";
+import type { Profile, TrickStance } from "./types";
+
+export type SelectedTrickDisplayStance = "regular" | "goofy";
 
 export const trickStanceLabels: Record<TrickStance, string> = {
   both: "両方",
@@ -6,7 +8,10 @@ export const trickStanceLabels: Record<TrickStance, string> = {
   goofy: "グーフィー",
 };
 
-export type TrickStanceView = "own" | "all";
+export const selectedStanceLabels: Record<SelectedTrickDisplayStance, string> = {
+  regular: "レギュラー表示",
+  goofy: "グーフィー表示",
+};
 
 export function profileStanceToTrickStance(stance: Profile["stance"] | undefined): TrickStance {
   if (stance === "レギュラー") return "regular";
@@ -14,11 +19,6 @@ export function profileStanceToTrickStance(stance: Profile["stance"] | undefined
   return "both";
 }
 
-export function matchesTrickStance(trick: Trick, profileStance: Profile["stance"] | undefined, view: TrickStanceView): boolean {
-  if (view === "all") return true;
-  const target = profileStanceToTrickStance(profileStance);
-  const trickStance = trick.stance ?? "both";
-  if (target === "regular") return trickStance === "regular" || trickStance === "both";
-  if (target === "goofy") return trickStance === "goofy" || trickStance === "both";
-  return trickStance === "both";
+export function profileStanceToSelectedStance(stance: Profile["stance"] | undefined): SelectedTrickDisplayStance {
+  return stance === "グーフィー" ? "goofy" : "regular";
 }
