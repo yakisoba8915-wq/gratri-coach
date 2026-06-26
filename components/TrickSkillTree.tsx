@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Circle, GitBranch } from "lucide-react";
 import { initialTricks } from "@/lib/mockData";
+import { trickStanceLabels } from "@/lib/trickStance";
 import type { MasteryStatus, Trick } from "@/lib/types";
 
 interface TreeNodeDefinition {
@@ -123,7 +124,7 @@ function TrickNode({ trick, showStatus }: { trick: Trick; showStatus: boolean })
         </span>
         <div className="min-w-0 flex-1">
           <p className="break-words text-sm font-black leading-5">{trick.nameJa}</p>
-          <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{trick.category}</p>
+          <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{trick.category} / {trickStanceLabels[trick.stance ?? "both"]}</p>
         </div>
       </div>
     </Link>

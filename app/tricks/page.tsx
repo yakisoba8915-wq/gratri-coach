@@ -11,14 +11,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
+import { matchesTrickStance, type TrickStanceView } from "@/lib/trickStance";
 import { masteryStatuses } from "@/lib/types";
 import type { TrainingType } from "@/lib/types";
 
 export default function TricksPage() {
   const { user } = useAuth();
   const [stored, refresh] = useSupabaseData(dataRepository.getAllTricks);
+  const [profile] = useSupabaseData(dataRepository.getProfile);
   const tricks = stored ?? initialTricks;
   const [activeType, setActiveType] = useState<TrainingType>("snow");
+  const [stanceView, setStanceView] = useState<TrickStanceView>("own");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [difficulty, setDifficulty] = useState("all");
@@ -32,10 +35,14 @@ export default function TricksPage() {
     () => tricks.filter((trick) => (trick.trickType ?? "snow") === activeType),
     [tricks, activeType],
   );
-  const categories = [...new Set(typeTricks.map((trick) => trick.category))];
+  const stanceFilteredTricks = useMemo(
+    () => typeTricks.filter((trick) => matchesTrickStance(trick, user ? profile?.stance : "", stanceView)),
+    [typeTricks, user, profile?.stance, stanceView],
+  );
+  const categories = [...new Set(stanceFilteredTricks.map((trick) => trick.category))];
   const filtered = useMemo(
     () =>
-      typeTricks.filter((trick) => {
+      stanceFilteredTricks.filter((trick) => {
         const matchesQuery = `${trick.nameJa} ${trick.nameEn}`.toLowerCase().includes(query.toLowerCase());
         const matchesDifficulty =
           difficulty === "all" ||
@@ -55,7 +62,7 @@ export default function TricksPage() {
           matchesUserFilters
         );
       }),
-    [typeTricks, query, category, difficulty, status, favorites, user, activeType],
+    [stanceFilteredTricks, query, category, difficulty, status, favorites, user, activeType],
   );
 
   function switchType(type: TrainingType): void {
@@ -98,6 +105,15 @@ export default function TricksPage() {
         </button>
         <button type="button" onClick={() => switchType("shibakatsu")} className={`rounded-xl px-3 py-3 text-sm font-black transition ${isShibakatsu ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400"}`}>
           シバカツトリック
+        </button>
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
+        <button type="button" onClick={() => setStanceView("own")} className={`rounded-xl px-3 py-2.5 text-xs font-black transition ${stanceView === "own" ? "bg-white text-glacier shadow-sm" : "text-slate-400"}`}>
+          自分のスタンス向け
+        </button>
+        <button type="button" onClick={() => setStanceView("all")} className={`rounded-xl px-3 py-2.5 text-xs font-black transition ${stanceView === "all" ? "bg-white text-glacier shadow-sm" : "text-slate-400"}`}>
+          全スタンス
         </button>
       </div>
 

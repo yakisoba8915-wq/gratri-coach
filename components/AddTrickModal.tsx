@@ -3,12 +3,17 @@
 import { Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { TrainingType } from "@/lib/types";
+import type { TrainingType, TrickStance } from "@/lib/types";
 
 const snowCategories = ["プレス系", "オーリー系", "ノーリー系", "乗り系", "180系", "360系", "540系", "その他"] as const;
 const shibakatsuCategories = ["プレス練習", "弾き練習", "回転練習", "バランス練習", "乗り練習", "連続動作", "その他"] as const;
 const takeoffTypes = ["なし", "オーリー", "ノーリー", "プレス", "乗り", "その他"] as const;
 const spinDirections = ["なし", "FS", "BS"] as const;
+const stanceOptions: { value: TrickStance; label: string }[] = [
+  { value: "both", label: "両方" },
+  { value: "regular", label: "レギュラー" },
+  { value: "goofy", label: "グーフィー" },
+];
 
 interface AddTrickModalProps {
   open: boolean;
@@ -28,6 +33,7 @@ export default function AddTrickModal({ open, trickType = "snow", onClose, onCre
   const [category, setCategory] = useState<string>(snowCategories[0]);
   const [takeoffType, setTakeoffType] = useState<(typeof takeoffTypes)[number]>("なし");
   const [spinDirection, setSpinDirection] = useState<(typeof spinDirections)[number]>("なし");
+  const [stance, setStance] = useState<TrickStance>("both");
   const [description, setDescription] = useState("");
   const [tips, setTips] = useState("");
   const [prerequisite, setPrerequisite] = useState("");
@@ -49,6 +55,7 @@ export default function AddTrickModal({ open, trickType = "snow", onClose, onCre
     setCategory(isShibakatsu ? shibakatsuCategories[0] : snowCategories[0]);
     setTakeoffType("なし");
     setSpinDirection("なし");
+    setStance("both");
     setDescription("");
     setTips("");
     setPrerequisite("");
@@ -91,6 +98,7 @@ export default function AddTrickModal({ open, trickType = "snow", onClose, onCre
           tips,
           prerequisite,
           trickType,
+          stance,
           relatedSnowTrick,
           cautions,
           password,
@@ -128,6 +136,7 @@ export default function AddTrickModal({ open, trickType = "snow", onClose, onCre
           <label className="text-sm font-bold">{isShibakatsu ? "メニュー名 / 技名" : "技名"} <span className="text-rose-500">*</span><input autoFocus className="field mt-2" value={name} onChange={(event) => setName(event.target.value)} /></label>
           <label className="text-sm font-bold">難易度 1〜10<input type="number" min={1} max={10} className="field mt-2" value={difficulty} onChange={(event) => setDifficulty(Number(event.target.value))} /></label>
           <label className="text-sm font-bold">系統<select className="field mt-2" value={category} onChange={(event) => setCategory(event.target.value)}>{categoryOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label className="text-sm font-bold">対応スタンス<select className="field mt-2" value={stance} onChange={(event) => setStance(event.target.value as TrickStance)}>{stanceOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
 
           {isShibakatsu ? (
             <>

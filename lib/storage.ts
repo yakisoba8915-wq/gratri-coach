@@ -4,14 +4,14 @@ import { getCurrentUser } from "./auth";
 import { initialGoals,initialPracticeLogs,initialProfile,initialTricks } from "./mockData";
 import { isSupabaseConfigured,supabase } from "./supabase";
 import { masteryStatuses } from "./types";
-import type { Goal,OffTrainingDayType,OffTrainingPlan,OffTrainingPlanItem,OffTrainingPreferences,PlanType,PracticeLog,Profile,Trick,Weekday,WeeklyOffTrainingDay } from "./types";
+import type { Goal,OffTrainingDayType,OffTrainingPlan,OffTrainingPlanItem,OffTrainingPreferences,PlanType,PracticeLog,Profile,Trick,TrickStance,Weekday,WeeklyOffTrainingDay } from "./types";
 
 const baseKeys={tricks:"gratri-tricks",logs:"gratri-logs",goals:"gratri-goals",profile:"gratri-profile",offPlan:"gratri-offtraining-plan",offPreferences:"gratri-offtraining-preferences"} as const;
 type DataKey=keyof typeof baseKeys;
 interface PracticeLogRow {id:string;user_id:string;date:string;training_type?:PracticeLog["trainingType"];resort_name:string;trick_id:string;success_count:number;fail_count:number;memo:string;self_analysis:string;weak_point:string;next_task:string;snow_condition:PracticeLog["snowCondition"];video_urls:string[];shibakatsu_menu?:string|null;duration_minutes?:number|null;reps?:number|null;sets?:number|null;}
 interface GoalRow {id:string;user_id:string;season:string;type:Goal["type"];trick_id:string;target_rate:number|null;completed:boolean;}
 interface ProfileRow {id:string;user_id:string;display_name:string;stance:Profile["stance"];avatar_url:string|null;avatar_path:string|null;plan_type?:PlanType|null;trick_preferences:Record<string,Pick<Trick,"masteryStatus"|"favorite">>|null;}
-interface PublicTrickRow {id:string;name:string;difficulty:number;category:string;takeoff_type:string;spin_direction:string;description:string;tips:string;prerequisite:string;trick_type:PracticeLog["trainingType"];related_snow_trick:string;cautions:string;created_by:string|null;is_official:boolean;}
+interface PublicTrickRow {id:string;name:string;difficulty:number;category:string;takeoff_type:string;spin_direction:string;description:string;tips:string;prerequisite:string;trick_type:PracticeLog["trainingType"];stance?:TrickStance|null;related_snow_trick:string;cautions:string;created_by:string|null;is_official:boolean;}
 const emptyProfile:Profile={displayName:"",stance:"",avatarUrl:null,avatarPath:null,planType:"free"};
 
 const localKey=(key:DataKey,userId?:string)=>userId?`${baseKeys[key]}:${userId}`:baseKeys[key];
@@ -21,6 +21,7 @@ function reportFallback(operation:string,error:unknown):void{console.warn(`[Grat
 async function userIdOrNull():Promise<string|null>{if(!isSupabaseConfigured||!supabase)return null;try{return(await getCurrentUser())?.id??null;}catch(error){reportFallback("auth",error);return null;}}
 const trickPreferences=(tricks:Trick[])=>Object.fromEntries(tricks.map(({id,masteryStatus,favorite})=>[id,{masteryStatus,favorite}]));
 const normalizeTrainingType=(value:unknown):PracticeLog["trainingType"]=>value==="shibakatsu"?"shibakatsu":"snow";
+const normalizeTrickStance=(value:unknown):TrickStance=>value==="regular"||value==="goofy"||value==="both"?value:"both";
 const normalizeLog=(log:PracticeLog):PracticeLog=>({...log,trainingType:normalizeTrainingType(log.trainingType),resortName:log.resortName??"",videoUrls:log.videoUrls??[]});
 const toLogRow=(log:PracticeLog,userId:string):PracticeLogRow=>({id:log.id,user_id:userId,date:log.date,training_type:normalizeTrainingType(log.trainingType),resort_name:log.trainingType==="shibakatsu"?"":log.resortName,trick_id:log.trickId,success_count:log.successCount,fail_count:log.failCount,memo:log.memo,self_analysis:log.selfAnalysis,weak_point:log.weakPoint,next_task:log.nextTask,snow_condition:log.snowCondition,video_urls:log.videoUrls,shibakatsu_menu:log.shibakatsuMenu??null,duration_minutes:log.durationMinutes??null,reps:log.reps??null,sets:log.sets??null});
 const fromLogRow=(row:PracticeLogRow):PracticeLog=>({id:row.id,date:row.date,trainingType:normalizeTrainingType(row.training_type),resortName:row.resort_name,trickId:row.trick_id,successCount:row.success_count,failCount:row.fail_count,memo:row.memo,selfAnalysis:row.self_analysis,weakPoint:row.weak_point,nextTask:row.next_task,snowCondition:row.snow_condition,videoUrls:row.video_urls??[],...(row.shibakatsu_menu?{shibakatsuMenu:row.shibakatsu_menu}:{}),...(typeof row.duration_minutes==="number"?{durationMinutes:row.duration_minutes}:{}),...(typeof row.reps==="number"?{reps:row.reps}:{}),...(typeof row.sets==="number"?{sets:row.sets}:{})});
@@ -42,7 +43,7 @@ async function replaceGoals(rows:GoalRow[],userId:string):Promise<void>{if(!supa
 function normalizeTrickName(value:string):string{return value.trim().toLocaleLowerCase("ja-JP");}
 async function getPublicDatabaseTricks():Promise<Trick[]>{
   if(!supabase)return [];
-  const {data,error}=await supabase.from("tricks").select("id,name,difficulty,category,takeoff_type,spin_direction,description,tips,prerequisite,trick_type,related_snow_trick,cautions,created_by,is_official").order("created_at",{ascending:true});
+  const {data,error}=await supabase.from("tricks").select("id,name,difficulty,category,takeoff_type,spin_direction,description,tips,prerequisite,trick_type,stance,related_snow_trick,cautions,created_by,is_official").order("created_at",{ascending:true});
   if(error)throw error;
   const rows=(data??[]) as PublicTrickRow[];
   const nameToId=new Map<string,string>();
@@ -55,7 +56,7 @@ async function getPublicDatabaseTricks():Promise<Trick[]>{
       id:row.id,nameJa:row.name,nameEn:row.name,category:row.category,difficulty:row.difficulty,
       description:row.description,howTo:row.tips?[row.tips]:[],commonMistakes:[],prerequisites,
       relatedTrainings:[],referenceVideos:[],imageUrls:[],masteryStatus:masteryStatuses[0],favorite:false,
-      takeoffType:row.takeoff_type,spinDirection:row.spin_direction,trickType:normalizeTrainingType(row.trick_type),
+      takeoffType:row.takeoff_type,spinDirection:row.spin_direction,trickType:normalizeTrainingType(row.trick_type),stance:normalizeTrickStance(row.stance),
       relatedSnowTrick:row.related_snow_trick??"",cautions:row.cautions??"",prerequisiteText:row.prerequisite??"",createdBy:row.created_by,isOfficial:row.is_official,
     };
   });

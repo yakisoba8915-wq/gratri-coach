@@ -6,6 +6,7 @@ export type SnowCondition = (typeof snowConditions)[number];
 export type TrainingCategory = "シバカツ" | "筋トレ" | "柔軟";
 export type GoalType = "技をメイクする" | "成功率を上げる";
 export type Stance = "レギュラー" | "グーフィー";
+export type TrickStance = "regular" | "goofy" | "both";
 
 export interface Trick {
   id: string; nameJa: string; nameEn: string; category: string; difficulty: number;
@@ -13,7 +14,7 @@ export interface Trick {
   relatedTrainings: string[]; referenceVideos: string[]; imageUrls: string[];
   masteryStatus: MasteryStatus; favorite: boolean;
   takeoffType?: string; spinDirection?: string; createdBy?: string | null; isOfficial?: boolean;
-  trickType?: TrainingType; relatedSnowTrick?: string; cautions?: string; prerequisiteText?: string;
+  trickType?: TrainingType; stance?: TrickStance; relatedSnowTrick?: string; cautions?: string; prerequisiteText?: string;
 }
 export type TrainingType = "snow" | "shibakatsu";
 export interface PracticeLog {

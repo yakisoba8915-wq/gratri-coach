@@ -1,4 +1,5 @@
 import { AlertTriangle, Link2, Lightbulb } from "lucide-react";
+import { trickStanceLabels } from "@/lib/trickStance";
 import type { Trick } from "@/lib/types";
 
 export default function ShibakatsuTrickCard({ trick }: { trick: Trick }) {
@@ -10,7 +11,10 @@ export default function ShibakatsuTrickCard({ trick }: { trick: Trick }) {
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="font-black">{trick.nameJa}</h3>
-          <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">{trick.category}</span>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">{trick.category}</span>
+            <span className="inline-flex rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">{trickStanceLabels[trick.stance ?? "both"]}</span>
+          </div>
         </div>
       </div>
 
