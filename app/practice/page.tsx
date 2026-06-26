@@ -10,6 +10,7 @@ import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
+import { canUseTrick } from "@/lib/accessControl";
 import { formatTrickName } from "@/lib/trickDisplay";
 import type { TrainingType } from "@/lib/types";
 
@@ -22,9 +23,12 @@ export default function PracticePage() {
   const { user } = useAuth();
   const [storedLogs] = useSupabaseData(dataRepository.getLogs);
   const [storedTricks] = useSupabaseData(dataRepository.getTricks);
+  const [profile] = useSupabaseData(dataRepository.getProfile);
   const [selectedStance] = useSelectedTrickStance();
   const logs = user ? (storedLogs ?? []) : [];
   const tricks = storedTricks ?? initialTricks;
+  const planType = user ? profile?.planType ?? "free" : "free";
+  const selectableTricks = tricks.filter((trick) => canUseTrick(trick, planType));
   const [trickId, setTrickId] = useState("all");
   const [date, setDate] = useState("");
   const [trainingType, setTrainingType] = useState<TrainingTypeFilter>("all");
@@ -66,7 +70,7 @@ export default function PracticePage() {
               onChange={(event) => setTrickId(event.target.value)}
             >
               <option value="all">すべての技</option>
-              {tricks.map((trick) => (
+              {selectableTricks.map((trick) => (
                 <option key={trick.id} value={trick.id}>
                   {formatTrickName(trick.nameJa, selectedStance)}
                 </option>

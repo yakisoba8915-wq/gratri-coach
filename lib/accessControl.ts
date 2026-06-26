@@ -1,0 +1,29 @@
+import { initialTricks } from "./mockData";
+import type { PlanType, Trick } from "./types";
+
+const initialFreeTrickIds = new Set(initialTricks.map((trick) => trick.id));
+
+export function isPremiumPlan(planType: PlanType | null | undefined): boolean {
+  return planType === "premium" || planType === "admin" || planType === "beta_tester";
+}
+
+export function canUsePremiumTricks(planType: PlanType | null | undefined): boolean {
+  return isPremiumPlan(planType);
+}
+
+export function isInitialFreeTrick(trick: Trick): boolean {
+  return initialFreeTrickIds.has(trick.id);
+}
+
+export function canUseTrick(trick: Trick, planType: PlanType | null | undefined): boolean {
+  if (isInitialFreeTrick(trick)) return true;
+  if ((trick.accessType ?? "premium") === "free") return true;
+  return canUsePremiumTricks(planType);
+}
+
+export function planLabel(planType: PlanType | null | undefined): string {
+  if (planType === "premium") return "Premium";
+  if (planType === "admin") return "Admin";
+  if (planType === "beta_tester") return "Beta Tester";
+  return "Free";
+}

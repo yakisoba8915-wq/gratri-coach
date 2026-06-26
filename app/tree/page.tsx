@@ -11,8 +11,10 @@ import { dataRepository } from "@/lib/storage";
 export default function TreePage() {
   const { user } = useAuth();
   const [storedTricks] = useSupabaseData(dataRepository.getTricks);
+  const [profile] = useSupabaseData(dataRepository.getProfile);
   const [selectedStance, setSelectedStance] = useSelectedTrickStance();
   const tricks = storedTricks ?? initialTricks;
+  const planType = user ? profile?.planType ?? "free" : "free";
 
   return (
     <main className="min-w-0">
@@ -28,7 +30,7 @@ export default function TreePage() {
           グーフィー
         </button>
       </div>
-      <TrickSkillTree tricks={tricks} showStatus={Boolean(user)} selectedStance={selectedStance} />
+      <TrickSkillTree tricks={tricks} showStatus={Boolean(user)} selectedStance={selectedStance} planType={planType} />
     </main>
   );
 }

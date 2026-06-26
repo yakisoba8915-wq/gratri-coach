@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Circle, GitBranch } from "lucide-react";
+import { Circle, GitBranch, Lock } from "lucide-react";
 import { initialTricks } from "@/lib/mockData";
+import { canUseTrick } from "@/lib/accessControl";
 import { formatTrickName } from "@/lib/trickDisplay";
 import { selectedStanceLabels, trickStanceLabels } from "@/lib/trickStance";
-import type { MasteryStatus, Trick } from "@/lib/types";
+import type { MasteryStatus, PlanType, Trick } from "@/lib/types";
 import type { SelectedTrickDisplayStance } from "@/lib/trickStance";
 
 interface TreeNodeDefinition {
@@ -23,6 +24,7 @@ interface TrickSkillTreeProps {
   tricks: Trick[];
   showStatus?: boolean;
   selectedStance?: SelectedTrickDisplayStance;
+  planType?: PlanType;
 }
 
 const sections: TreeSection[] = [
@@ -113,12 +115,13 @@ function buildDbChildren(tricks: Trick[]): Map<string, Trick[]> {
   return result;
 }
 
-function TrickNode({ trick, showStatus, selectedStance }: { trick: Trick; showStatus: boolean; selectedStance: SelectedTrickDisplayStance }) {
+function TrickNode({ trick, showStatus, selectedStance, planType }: { trick: Trick; showStatus: boolean; selectedStance: SelectedTrickDisplayStance; planType: PlanType }) {
+  const allowed = canUseTrick(trick, planType);
   return (
     <Link
       href={`/tricks/${trick.id}?stance=${selectedStance}`}
       className={`block min-w-0 rounded-2xl border px-3 py-3 shadow-sm transition active:scale-[.98] ${
-        showStatus ? statusStyles[trick.masteryStatus] : "border-slate-200 bg-white"
+        !allowed ? "border-amber-200 bg-amber-50/60" : showStatus ? statusStyles[trick.masteryStatus] : "border-slate-200 bg-white"
       }`}
     >
       <div className="flex min-w-0 items-start gap-2">
@@ -129,6 +132,7 @@ function TrickNode({ trick, showStatus, selectedStance }: { trick: Trick; showSt
           <p className="break-words text-sm font-black leading-5">{formatTrickName(trick.nameJa, selectedStance)}</p>
           <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{trick.category} / 対応: {trickStanceLabels[trick.stance ?? "both"]}</p>
           <p className="mt-0.5 text-[10px] font-bold text-blue-500">{selectedStanceLabels[selectedStance]}</p>
+          {!allowed && <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[10px] font-black text-amber-700"><Lock size={10}/>有料トリック</p>}
         </div>
       </div>
     </Link>
@@ -141,6 +145,7 @@ function TreeBranch({
   dbChildren,
   showStatus,
   selectedStance,
+  planType,
   path,
 }: {
   definition: TreeNodeDefinition;
@@ -148,6 +153,7 @@ function TreeBranch({
   dbChildren: Map<string, Trick[]>;
   showStatus: boolean;
   selectedStance: SelectedTrickDisplayStance;
+  planType: PlanType;
   path: Set<string>;
 }) {
   const trick = trickMap.get(definition.id);
@@ -164,7 +170,7 @@ function TreeBranch({
 
   return (
     <div className="min-w-0">
-      <TrickNode trick={trick} showStatus={showStatus} selectedStance={selectedStance} />
+      <TrickNode trick={trick} showStatus={showStatus} selectedStance={selectedStance} planType={planType} />
       {children.length > 0 && (
         <div className="relative ml-4 mt-2 space-y-2 border-l-2 border-sky-200 pl-5">
           {children.map((child) => (
@@ -175,6 +181,7 @@ function TreeBranch({
                 dbChildren={dbChildren}
                 showStatus={showStatus}
                 selectedStance={selectedStance}
+                planType={planType}
                 path={nextPath}
               />
             </div>
@@ -185,7 +192,7 @@ function TreeBranch({
   );
 }
 
-export default function TrickSkillTree({ tricks, showStatus = false, selectedStance = "regular" }: TrickSkillTreeProps) {
+export default function TrickSkillTree({ tricks, showStatus = false, selectedStance = "regular", planType = "free" }: TrickSkillTreeProps) {
   const snowTricks = tricks.filter((trick) => (trick.trickType ?? "snow") === "snow");
   const trickMap = new Map(snowTricks.map((trick) => [trick.id, trick]));
   const dbChildren = buildDbChildren(snowTricks);
@@ -219,6 +226,7 @@ export default function TrickSkillTree({ tricks, showStatus = false, selectedSta
                   dbChildren={dbChildren}
                   showStatus={showStatus}
                   selectedStance={selectedStance}
+                  planType={planType}
                   path={new Set()}
                 />
               ))}
@@ -238,7 +246,7 @@ export default function TrickSkillTree({ tricks, showStatus = false, selectedSta
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {unresolved.map((trick) => (
-              <TrickNode key={trick.id} trick={trick} showStatus={showStatus} selectedStance={selectedStance} />
+              <TrickNode key={trick.id} trick={trick} showStatus={showStatus} selectedStance={selectedStance} planType={planType} />
             ))}
           </div>
         </section>

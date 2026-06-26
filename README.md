@@ -186,9 +186,10 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - SQL Editorで `supabase/ai-usage-limits.sql` を実行してください。
 - 使用履歴は `ai_usage_logs` に保存します。
 - `profiles.plan_type` でプランを管理します。プロフィール画面からは編集できません。
-- プラン種別は `free` / `premium` / `admin` です。
+- プラン種別は `free` / `premium` / `admin` / `beta_tester` です。
 - `free` は AI対話 3回/日、AI練習アドバイス 3回/日、AI動画解析 1回/日です。
 - `premium` は AI対話 50回/日、AI練習アドバイス 50回/日、AI動画解析 10回/日です。
+- `beta_tester` はPremium相当の上限で、サブスクなしにPremium機能を利用できます。
 - `admin` は無制限です。
 - 上限に達した場合は OpenAI API を呼ばず、「本日のAI利用上限に達しました。明日また利用できます。」を表示します。
 - `ai_usage_logs` は `user_id` によるRLSで、自分の使用履歴のみ select / insert できます。
@@ -226,6 +227,18 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - ログイン中に追加した場合は `created_by` にユーザーIDを保存します。未ログインの場合は `null` です。
 - 技には `stance`（`regular` / `goofy` / `both`）を保存できます。既存環境ではSQL Editorで `supabase/add-trick-stance.sql` を実行してください。
 - 技追加フォームでは「対応スタンス」を選択できます。未指定時と初期20技は `both` 扱いです。
+
+## トリックの無料 / Premium制限
+
+- 初期20トリックはコード内定義のため常に無料です。レギュラー表示・グーフィー表示ともに、一覧、技ツリー、練習記録、AIアドバイスで利用できます。
+- DBに追加された通常トリック、シバカツトリック、今後の公式追加トリックはデフォルトでPremium限定です。
+- 既存環境ではSQL Editorで `supabase/add-trick-access-control.sql` を実行してください。
+- `profiles.plan_type` は `free` / `premium` / `admin` / `beta_tester` に対応します。
+- `tricks.access_type` は `free` / `premium` に対応します。管理パスワード経由の技追加では初期値を `premium` にしています。
+- `free` と未ログインユーザーは初期20トリックのみ利用でき、追加トリックはロック表示になります。ロック中でも技名・難易度・系統は確認できます。
+- Premium限定トリックの説明、コツ、詳細内容、練習記録への選択、AIアドバイス対象化は `premium` / `admin` / `beta_tester` のみ利用できます。
+- βテスターはSupabase Table Editorで対象ユーザーの `profiles.plan_type` を `beta_tester` に変更すると、サブスクなしに全トリックを利用できます。
+- Stripeなどの実決済は未実装です。将来的に `plan_type` 更新処理を決済完了Webhookと連携する想定です。
 
 ## シバカツ用トリック一覧
 

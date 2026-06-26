@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { generateAdvice } from "@/lib/aiAdvisor";
+import { canUseTrick } from "@/lib/accessControl";
 import { formatTrickName } from "@/lib/trickDisplay";
 import { initialTricks } from "@/lib/mockData";
 import { getRecommendations, getTrendingTrick } from "@/lib/recommendations";
@@ -25,11 +26,13 @@ export default function HomePage() {
   const [offTrainingPlan] = useSupabaseData(dataRepository.getOffTrainingPlan);
   const [practiceVideos] = useSupabaseData(getPracticeVideosForCurrentUser);
   const currentTricks = tricks ?? initialTricks;
+  const planType = user ? profile?.planType ?? "free" : "free";
+  const usableTricks = currentTricks.filter((trick) => canUseTrick(trick, planType));
   const currentLogs = user ? (logs ?? []) : [];
   const currentVideos = user ? (practiceVideos ?? []) : [];
-  const recommendations = user ? getRecommendations(currentTricks, currentLogs) : [];
-  const trending = user ? getTrendingTrick(currentTricks, currentLogs) : undefined;
-  const advice = user ? generateAdvice({ tricks: currentTricks, logs: currentLogs, videos: currentVideos, offTrainingPlan }) : undefined;
+  const recommendations = user ? getRecommendations(usableTricks, currentLogs) : [];
+  const trending = user ? getTrendingTrick(usableTricks, currentLogs) : undefined;
+  const advice = user ? generateAdvice({ tricks: usableTricks, logs: currentLogs, videos: currentVideos, offTrainingPlan }) : undefined;
   const nextTask = currentLogs[0]?.nextTask;
 
   return (
@@ -55,7 +58,7 @@ export default function HomePage() {
         </div>
       </Link>
 
-      {advice && <AIAdviceCard advice={advice} tricks={currentTricks} logs={currentLogs} videos={currentVideos} goals={goals ?? []} profile={profile} offTrainingPlan={offTrainingPlan} selectedStance={selectedStance} />}
+      {advice && <AIAdviceCard advice={advice} tricks={usableTricks} logs={currentLogs} videos={currentVideos} goals={goals ?? []} profile={profile} offTrainingPlan={offTrainingPlan} selectedStance={selectedStance} />}
 
       <section className="mb-8">
         <SectionTitle title="今日のおすすめ" subtitle="いま伸ばしたい3トリック" href="/tricks" />
@@ -91,7 +94,7 @@ export default function HomePage() {
       {trending && (
         <section>
           <SectionTitle title="ピックアップ" />
-          <TrickCard trick={trending} selectedStance={selectedStance} />
+          <TrickCard trick={trending} selectedStance={selectedStance} canUse={canUseTrick(trending, planType)} />
         </section>
       )}
     </main>

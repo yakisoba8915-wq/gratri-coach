@@ -10,6 +10,7 @@ import TrickList from "@/components/TrickList";
 import { useAuth } from "@/hooks/useAuth";
 import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
+import { canUseTrick } from "@/lib/accessControl";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
 import { masteryStatuses } from "@/lib/types";
@@ -18,6 +19,7 @@ import type { TrainingType } from "@/lib/types";
 export default function TricksPage() {
   const { user } = useAuth();
   const [stored, refresh] = useSupabaseData(dataRepository.getAllTricks);
+  const [profile] = useSupabaseData(dataRepository.getProfile);
   const tricks = stored ?? initialTricks;
   const [activeType, setActiveType] = useState<TrainingType>("snow");
   const [selectedStance, setSelectedStance] = useSelectedTrickStance();
@@ -76,6 +78,7 @@ export default function TricksPage() {
   }
 
   const isShibakatsu = activeType === "shibakatsu";
+  const planType = user ? profile?.planType ?? "free" : "free";
 
   return (
     <main>
@@ -166,7 +169,7 @@ export default function TricksPage() {
       {isShibakatsu ? (
         filtered.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            {filtered.map((trick) => <ShibakatsuTrickCard key={trick.id} trick={trick} selectedStance={selectedStance} />)}
+            {filtered.map((trick) => <ShibakatsuTrickCard key={trick.id} trick={trick} selectedStance={selectedStance} canUse={canUseTrick(trick, planType)} />)}
           </div>
         ) : typeTricks.length === 0 ? (
           <div className="card py-12 text-center text-sm leading-6 text-slate-500">
@@ -177,7 +180,7 @@ export default function TricksPage() {
           <div className="card py-12 text-center text-sm text-slate-500">条件に合うシバカツトリックがありません。</div>
         )
       ) : (
-        <TrickList tricks={filtered} view={view} showUserData={Boolean(user)} selectedStance={selectedStance} />
+        <TrickList tricks={filtered} view={view} showUserData={Boolean(user)} selectedStance={selectedStance} planType={planType} />
       )}
 
       <AddTrickModal

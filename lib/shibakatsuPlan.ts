@@ -3,6 +3,8 @@
 import { supabase } from "./supabase";
 import { generateOffTrainingPlan as generateBasePlan } from "./offTrainingPlanner";
 import type { OffTrainingPreferences, SelectedShibakatsuMenu, ShibakatsuTrick } from "./types";
+import { canUsePremiumTricks } from "./accessControl";
+import type { PlanType, TrickAccessType } from "./types";
 
 interface ShibakatsuTrickRow {
   id: string;
@@ -13,18 +15,21 @@ interface ShibakatsuTrickRow {
   description: string | null;
   tips: string | null;
   cautions: string | null;
+  access_type?: TrickAccessType | null;
 }
 
 const includes = (value: string, keyword: string): boolean => value.includes(keyword);
 
-export async function fetchShibakatsuTricks(): Promise<ShibakatsuTrick[]> {
+export async function fetchShibakatsuTricks(planType: PlanType = "free"): Promise<ShibakatsuTrick[]> {
   if (!supabase) return [];
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("tricks")
-    .select("id,name,difficulty,category,related_snow_trick,description,tips,cautions")
+    .select("id,name,difficulty,category,related_snow_trick,description,tips,cautions,access_type")
     .eq("trick_type", "shibakatsu")
     .order("created_at", { ascending: true });
+  if (!canUsePremiumTricks(planType)) query = query.eq("access_type", "free");
+  const { data, error } = await query;
 
   if (error) {
     console.warn("[Gratri Coach] Failed to load DB shibakatsu tricks. Using fallback menus.", error);
@@ -40,6 +45,7 @@ export async function fetchShibakatsuTricks(): Promise<ShibakatsuTrick[]> {
     description: row.description ?? "",
     tips: row.tips ?? "",
     cautions: row.cautions ?? "",
+    accessType: row.access_type === "free" ? "free" : "premium",
   }));
 }
 
@@ -88,7 +94,8 @@ export function pickShibakatsuMenusFromDb(
 export async function generateOffTrainingPlan(
   preferences: OffTrainingPreferences,
   userId: string,
+  planType: PlanType = "free",
 ) {
-  const dbMenus = pickShibakatsuMenusFromDb(await fetchShibakatsuTricks(), preferences);
+  const dbMenus = pickShibakatsuMenusFromDb(await fetchShibakatsuTricks(planType), preferences);
   return generateBasePlan(preferences, userId, dbMenus);
 }

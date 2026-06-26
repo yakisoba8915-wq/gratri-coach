@@ -7,6 +7,7 @@ export type TrainingCategory = "シバカツ" | "筋トレ" | "柔軟";
 export type GoalType = "技をメイクする" | "成功率を上げる";
 export type Stance = "レギュラー" | "グーフィー";
 export type TrickStance = "regular" | "goofy" | "both";
+export type TrickAccessType = "free" | "premium";
 
 export interface Trick {
   id: string; nameJa: string; nameEn: string; category: string; difficulty: number;
@@ -14,7 +15,7 @@ export interface Trick {
   relatedTrainings: string[]; referenceVideos: string[]; imageUrls: string[];
   masteryStatus: MasteryStatus; favorite: boolean;
   takeoffType?: string; spinDirection?: string; createdBy?: string | null; isOfficial?: boolean;
-  trickType?: TrainingType; stance?: TrickStance; relatedSnowTrick?: string; cautions?: string; prerequisiteText?: string;
+  trickType?: TrainingType; stance?: TrickStance; accessType?: TrickAccessType; relatedSnowTrick?: string; cautions?: string; prerequisiteText?: string;
 }
 export type TrainingType = "snow" | "shibakatsu";
 export interface PracticeLog {
@@ -57,7 +58,7 @@ export interface AiCoachMessage {
 }
 export interface Training { id: string; name: string; category: TrainingCategory; description: string; relatedTrickIds: string[]; minutes: number; }
 export interface Goal { id: string; season: string; type: GoalType; trickId: string; targetRate?: number; completed: boolean; }
-export type PlanType = "free" | "premium" | "admin";
+export type PlanType = "free" | "premium" | "admin" | "beta_tester";
 export type AiFeatureType = "ai_chat" | "ai_advice" | "ai_video_analysis";
 export interface AiUsageStatus {
   featureType: AiFeatureType; planType: PlanType; used: number; limit: number | null; remaining: number | null; unlimited: boolean; limitReached: boolean;
@@ -97,7 +98,7 @@ export interface OffTrainingPlan {
 }
 export interface ShibakatsuTrick {
   id: string; name: string; difficulty: number; category: string; relatedSnowTrick: string;
-  description: string; tips: string; cautions: string;
+  description: string; tips: string; cautions: string; accessType?: TrickAccessType;
 }
 export interface SelectedShibakatsuMenu {
   id: string; name: string; difficulty: number; category: string; relatedSnowTrick: string;

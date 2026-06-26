@@ -7,6 +7,7 @@ import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
+import { canUseTrick } from "@/lib/accessControl";
 
 export default function AIChatPage() {
   const { user } = useAuth();
@@ -16,6 +17,9 @@ export default function AIChatPage() {
   const [goals] = useSupabaseData(dataRepository.getGoals);
   const [offTrainingPlan] = useSupabaseData(dataRepository.getOffTrainingPlan);
   const [tricks] = useSupabaseData(dataRepository.getTricks);
+  const allTricks = tricks ?? initialTricks;
+  const planType = user ? profile?.planType ?? "free" : "free";
+  const usableTricks = allTricks.filter((trick) => canUseTrick(trick, planType));
 
   return (
     <main>
@@ -27,7 +31,7 @@ export default function AIChatPage() {
         practiceLogs={user ? (practiceLogs ?? []) : []}
         goals={user ? (goals ?? []) : []}
         offTrainingPlan={user ? (offTrainingPlan ?? null) : null}
-        tricks={tricks ?? initialTricks}
+        tricks={usableTricks}
         selectedStance={selectedStance}
       />
     </main>

@@ -9,6 +9,7 @@ import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { useAuth } from "@/hooks/useAuth";
+import { planLabel } from "@/lib/accessControl";
 import { dataRepository } from "@/lib/storage";
 import { deleteAvatar, uploadAvatar } from "@/lib/avatarStorage";
 import type { Profile, Stance } from "@/lib/types";
@@ -20,7 +21,7 @@ export default function ProfilePage() {
   const [stored, refresh] = useSupabaseData(dataRepository.getProfile);
   const [storedTricks] = useSupabaseData(dataRepository.getTricks);
   const [storedLogs] = useSupabaseData(dataRepository.getLogs);
-  const profile: Profile = user && stored ? stored : { displayName: "", stance: "", avatarUrl: null, avatarPath: null };
+  const profile: Profile = user && stored ? stored : { displayName: "", stance: "", avatarUrl: null, avatarPath: null, planType: "free" };
 
   const [displayName, setDisplayName] = useState("");
   const [stance, setStance] = useState<Stance | "">("");
@@ -153,6 +154,7 @@ export default function ProfilePage() {
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-lg font-black">{user ? profile.displayName : ""}</h2>
             <p className="mt-0.5 min-h-4 text-xs font-bold text-slate-400">{user && profile.stance ? `${profile.stance}スタンス` : ""}</p>
+            {user && <p className="mt-1 inline-flex rounded-full bg-ice px-2 py-1 text-[10px] font-black text-glacier">Plan: {planLabel(profile.planType)}</p>}
             <p className="mt-1 text-[10px] font-bold text-slate-400">{user ? "jpg / jpeg / png / webp・最大5MB" : "ログインするとプロフィール画像を設定できます"}</p>
           </div>
         </div>
@@ -186,6 +188,18 @@ export default function ProfilePage() {
         <StatCard label="練習記録" value={logCount} suffix="件" />
         <StatCard label="完成トリック" value={completed} suffix="技" />
       </div>
+
+      <section className="card mb-4">
+        <h2 className="font-black">現在のプラン</h2>
+        <p className="mt-2 text-2xl font-black text-glacier">{user ? planLabel(profile.planType) : "Free"}</p>
+        <p className="mt-2 text-xs font-bold leading-5 text-slate-500">
+          {profile.planType === "beta_tester"
+            ? "βテスター特典によりPremium機能を利用できます。"
+            : profile.planType === "premium" || profile.planType === "admin"
+              ? "追加トリックを含むPremium機能を利用できます。"
+              : "Freeでは初期20トリックを利用できます。追加トリックはPremium限定です。"}
+        </p>
+      </section>
 
       <section className="card mb-4 grid gap-4">
         <h2 className="font-black">基本情報</h2>

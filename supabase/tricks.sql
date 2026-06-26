@@ -12,6 +12,7 @@ create table if not exists public.tricks (
   prerequisite text not null default '',
   trick_type text not null default 'snow' check (trick_type in ('snow', 'shibakatsu')),
   stance text not null default 'both' check (stance in ('regular', 'goofy', 'both')),
+  access_type text not null default 'premium' check (access_type in ('free', 'premium')),
   related_snow_trick text not null default '',
   cautions text not null default '',
   created_by uuid references auth.users(id) on delete set null,

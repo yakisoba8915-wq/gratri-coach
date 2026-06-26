@@ -15,6 +15,11 @@ const dailyLimits: Record<Exclude<PlanType, "admin">, Record<AiFeatureType, numb
     ai_advice: 50,
     ai_video_analysis: 10,
   },
+  beta_tester: {
+    ai_chat: 50,
+    ai_advice: 50,
+    ai_video_analysis: 10,
+  },
 };
 
 interface UsageClientContext {
@@ -25,7 +30,7 @@ interface UsageClientContext {
 export const AI_USAGE_LIMIT_MESSAGE = usageLimitMessage;
 
 function normalizePlanType(value: unknown): PlanType {
-  return value === "premium" || value === "admin" || value === "free" ? value : "free";
+  return value === "premium" || value === "admin" || value === "beta_tester" || value === "free" ? value : "free";
 }
 
 function startOfTodayIso(): string {
