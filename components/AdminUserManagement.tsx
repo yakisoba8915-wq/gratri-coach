@@ -6,7 +6,7 @@ import { getAiRequestHeaders } from "@/lib/aiUsageLimits";
 import { planLabel } from "@/lib/accessControl";
 import type { PlanType } from "@/lib/types";
 
-const editablePlanTypes: PlanType[] = ["free", "premium", "beta_tester", "admin"];
+const editablePlanTypes: PlanType[] = ["free", "premium", "beta_tester", "editor", "admin"];
 
 interface AdminUser {
   userId: string;

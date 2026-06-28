@@ -186,11 +186,11 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - SQL Editorで `supabase/ai-usage-limits.sql` を実行してください。
 - 使用履歴は `ai_usage_logs` に保存します。
 - `profiles.plan_type` でプランを管理します。プロフィール画面からは編集できません。
-- プラン種別は `free` / `premium` / `admin` / `beta_tester` です。
+- プラン種別は `free` / `premium` / `beta_tester` / `editor` / `admin` です。
 - `free` は AI対話 3回/日、AI練習アドバイス 3回/日、AI動画解析 1回/日です。
 - `premium` は AI対話 50回/日、AI練習アドバイス 50回/日、AI動画解析 10回/日です。
 - `beta_tester` はPremium相当の上限で、サブスクなしにPremium機能を利用できます。
-- `admin` は無制限です。
+- `editor` / `admin` は無制限です。
 - 上限に達した場合は OpenAI API を呼ばず、「本日のAI利用上限に達しました。明日また利用できます。」を表示します。
 - `ai_usage_logs` は `user_id` によるRLSで、自分の使用履歴のみ select / insert できます。
 
@@ -241,10 +241,10 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - 初期20トリックはコード内定義のため常に無料です。レギュラー表示・グーフィー表示ともに、一覧、技ツリー、練習記録、AIアドバイスで利用できます。
 - DBに追加された通常トリック、シバカツトリック、今後の公式追加トリックはデフォルトでPremium限定です。
 - 既存環境ではSQL Editorで `supabase/add-trick-access-control.sql` を実行してください。
-- `profiles.plan_type` は `free` / `premium` / `admin` / `beta_tester` に対応します。
+- `profiles.plan_type` は `free` / `premium` / `beta_tester` / `editor` / `admin` に対応します。
 - `tricks.access_type` は `free` / `premium` に対応します。管理パスワード経由の技追加では初期値を `premium` にしています。
 - `free` と未ログインユーザーは初期20トリックのみ利用でき、追加トリックはロック表示になります。ロック中でも技名・難易度・系統は確認できます。
-- Premium限定トリックの説明、コツ、詳細内容、練習記録への選択、AIアドバイス対象化は `premium` / `admin` / `beta_tester` のみ利用できます。
+- Premium限定トリックの説明、コツ、詳細内容、練習記録への選択、AIアドバイス対象化は `premium` / `beta_tester` / `editor` / `admin` のみ利用できます。
 - βテスターはSupabase Table Editorで対象ユーザーの `profiles.plan_type` を `beta_tester` に変更すると、サブスクなしに全トリックを利用できます。
 - Stripeなどの実決済は未実装です。将来的に `plan_type` 更新処理を決済完了Webhookと連携する想定です。
 
@@ -256,7 +256,7 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - ユーザー一覧の取得は `app/api/admin/users/route.ts`、plan_type更新は `app/api/admin/users/[userId]/plan/route.ts` 経由で行います。
 - API Route側でもログインユーザーの `profiles.plan_type` を確認し、admin以外は403を返します。
 - `SUPABASE_SERVICE_ROLE_KEY` はAPI Route内だけで使用し、クライアントには出しません。`NEXT_PUBLIC_` を付けないでください。
-- 変更可能なplan_typeは `free` / `premium` / `beta_tester` / `admin` です。
+- 変更可能なplan_typeは `free` / `premium` / `beta_tester` / `editor` / `admin` です。
 - profilesに `email` や `created_at` カラムが存在する場合のみ一覧に表示します。存在しない場合でもUI上は省略されます。
 
 ## シバカツ用トリック一覧
@@ -289,3 +289,11 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - DBメニューは「シバカツの日」だけで使用し、「筋トレ＋柔軟の日」には混在させません。
 - DBにシバカツメニューがない場合や取得エラー時は、`lib/shibakatsuMenu.ts` の固定メニューへ自動的にフォールバックします。
 - 週に複数のシバカツ日がある場合は候補をローテーションし、候補数が十分なら同じメニューの連続表示を避けます。
+
+## Editor権限
+
+- `profiles.plan_type` に `editor` を追加しています。SQL Editorで `supabase/add-editor-role.sql` を実行すると、許可値が `free` / `premium` / `beta_tester` / `editor` / `admin` に更新されます。
+- `editor` は通常トリック追加、シバカツトリック追加、トリック編集、トリック削除を管理パスワードなしで実行できます。
+- `editor` は `/admin` にはアクセスできず、他ユーザーの `plan_type` は変更できません。管理者ページと管理APIは `admin` のみ許可します。
+- 管理者ページのplan_type変更先には `editor` も含めています。
+- 管理パスワード方式は残しているため、`free` / `premium` / `beta_tester` ユーザーは従来どおり `TRICK_ADMIN_PASSWORD` 入力で技追加・編集・削除できます。

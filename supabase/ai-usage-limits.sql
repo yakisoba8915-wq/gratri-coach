@@ -5,6 +5,19 @@ add column if not exists plan_type text not null default 'free';
 
 do $$
 begin
+  if exists (
+    select 1
+    from pg_constraint
+    where conname = 'profiles_plan_type_check'
+      and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles drop constraint profiles_plan_type_check;
+  end if;
+
+  update public.profiles
+  set plan_type = 'free'
+  where plan_type is null or plan_type not in ('free', 'premium', 'admin', 'beta_tester', 'editor');
+
   if not exists (
     select 1
     from pg_constraint
@@ -13,7 +26,7 @@ begin
   ) then
     alter table public.profiles
     add constraint profiles_plan_type_check
-    check (plan_type in ('free', 'premium', 'admin'));
+    check (plan_type in ('free', 'premium', 'admin', 'beta_tester', 'editor'));
   end if;
 end $$;
 

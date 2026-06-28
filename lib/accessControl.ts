@@ -4,7 +4,23 @@ import type { PlanType, Trick } from "./types";
 const initialFreeTrickIds = new Set(initialTricks.map((trick) => trick.id));
 
 export function isPremiumPlan(planType: PlanType | null | undefined): boolean {
-  return planType === "premium" || planType === "admin" || planType === "beta_tester";
+  return planType === "premium" || planType === "admin" || planType === "beta_tester" || planType === "editor";
+}
+
+export function isEditor(planType: PlanType | null | undefined): boolean {
+  return planType === "editor";
+}
+
+export function isAdmin(planType: PlanType | null | undefined): boolean {
+  return planType === "admin";
+}
+
+export function canManageTricks(planType: PlanType | null | undefined): boolean {
+  return planType === "admin" || planType === "editor";
+}
+
+export function canAccessAdminPage(planType: PlanType | null | undefined): boolean {
+  return planType === "admin";
 }
 
 export function canUsePremiumTricks(planType: PlanType | null | undefined): boolean {
@@ -25,5 +41,6 @@ export function planLabel(planType: PlanType | null | undefined): string {
   if (planType === "premium") return "Premium";
   if (planType === "admin") return "Admin";
   if (planType === "beta_tester") return "Beta Tester";
+  if (planType === "editor") return "Editor";
   return "Free";
 }

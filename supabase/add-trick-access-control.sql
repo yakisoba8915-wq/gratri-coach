@@ -3,7 +3,7 @@ alter table public.profiles
 
 update public.profiles
 set plan_type = 'free'
-where plan_type is null or plan_type not in ('free', 'premium', 'admin', 'beta_tester');
+where plan_type is null or plan_type not in ('free', 'premium', 'admin', 'beta_tester', 'editor');
 
 do $$
 begin
@@ -18,7 +18,7 @@ begin
 
   alter table public.profiles
     add constraint profiles_plan_type_check
-    check (plan_type in ('free', 'premium', 'admin', 'beta_tester'));
+    check (plan_type in ('free', 'premium', 'admin', 'beta_tester', 'editor'));
 end $$;
 
 alter table public.tricks

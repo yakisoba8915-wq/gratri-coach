@@ -9,7 +9,7 @@ import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { useAuth } from "@/hooks/useAuth";
-import { planLabel } from "@/lib/accessControl";
+import { canAccessAdminPage, planLabel } from "@/lib/accessControl";
 import { dataRepository } from "@/lib/storage";
 import { deleteAvatar, uploadAvatar } from "@/lib/avatarStorage";
 import type { Profile, Stance } from "@/lib/types";
@@ -232,7 +232,7 @@ export default function ProfilePage() {
           <span className="flex-1 font-bold">技ツリー</span>
           <ChevronRight className="text-slate-300" />
         </Link>
-        {user && profile.planType === "admin" && (
+        {user && canAccessAdminPage(profile.planType) && (
           <Link href="/admin" className="flex items-center gap-3 rounded-2xl p-3">
             <ShieldCheck className="text-amber-500" />
             <span className="flex-1 font-bold">管理者ページ</span>

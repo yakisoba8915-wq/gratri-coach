@@ -1,7 +1,8 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
+import { canAccessAdminPage } from "./accessControl";
 import type { PlanType } from "./types";
 
-export const editablePlanTypes: PlanType[] = ["free", "premium", "beta_tester", "admin"];
+export const editablePlanTypes: PlanType[] = ["free", "premium", "beta_tester", "editor", "admin"];
 
 interface AdminContext {
   adminClient: SupabaseClient;
@@ -24,7 +25,7 @@ function bearerToken(request: Request): string {
 }
 
 export function normalizePlanType(value: unknown): PlanType {
-  return value === "premium" || value === "admin" || value === "beta_tester" ? value : "free";
+  return value === "premium" || value === "admin" || value === "beta_tester" || value === "editor" ? value : "free";
 }
 
 export function isEditablePlanType(value: unknown): value is PlanType {
@@ -56,6 +57,6 @@ export async function getAdminContext(request: Request): Promise<AdminContext | 
     .eq("user_id", userData.user.id)
     .maybeSingle();
 
-  if (profileError || normalizePlanType(profile?.plan_type) !== "admin") return null;
+  if (profileError || !canAccessAdminPage(normalizePlanType(profile?.plan_type))) return null;
   return { adminClient, user: userData.user };
 }

@@ -1,6 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { initialTricks } from "@/lib/mockData";
+import { authorizeTrickMutation } from "@/lib/trickManagementAuth";
 import type { TrainingType, TrickAccessType, TrickStance } from "@/lib/types";
 
 const snowCategories = ["プレス系", "オーリー系", "ノーリー系", "乗り系", "180系", "360系", "540系", "その他"] as const;
@@ -32,24 +32,11 @@ function normalized(value: string): string {
   return value.trim().toLocaleLowerCase("ja-JP");
 }
 
-function bearerToken(request: Request): string | null {
-  const authorization = request.headers.get("authorization");
-  return authorization?.startsWith("Bearer ") ? authorization.slice(7) : null;
-}
-
 export async function POST(request: Request) {
-  const adminPassword = process.env.TRICK_ADMIN_PASSWORD;
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!adminPassword || !supabaseUrl || !serviceRoleKey) {
-    return NextResponse.json({ error: "技追加機能のサーバー設定が完了していません。" }, { status: 503 });
-  }
-
   const body = (await request.json().catch(() => ({}))) as CreateTrickBody;
-  if (!body.password || body.password !== adminPassword) {
-    return NextResponse.json({ error: "パスワードが違います。" }, { status: 401 });
-  }
+  const authorization = await authorizeTrickMutation(request, body.password);
+  if (authorization.error) return NextResponse.json({ error: authorization.error }, { status: authorization.status ?? 401 });
+  const { adminClient, createdBy } = authorization;
 
   const trickType: TrainingType = body.trickType === "shibakatsu" ? "shibakatsu" : body.trickType === undefined || body.trickType === "snow" ? "snow" : body.trickType as TrainingType;
   if (trickType !== "snow" && trickType !== "shibakatsu") {
@@ -89,10 +76,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "同じ種類に同名の技がすでに登録されています。" }, { status: 409 });
   }
 
-  const adminClient = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
   const { data: existing, error: duplicateCheckError } = await adminClient
     .from("tricks")
     .select("id")
@@ -105,13 +88,6 @@ export async function POST(request: Request) {
   }
   if (existing && existing.length > 0) {
     return NextResponse.json({ error: "同じ種類に同名の技がすでに登録されています。" }, { status: 409 });
-  }
-
-  let createdBy: string | null = null;
-  const token = bearerToken(request);
-  if (token) {
-    const { data } = await adminClient.auth.getUser(token);
-    createdBy = data.user?.id ?? null;
   }
 
   const { data, error } = await adminClient

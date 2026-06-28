@@ -6,6 +6,7 @@ import AuthButton from "@/components/AuthButton";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
+import { canAccessAdminPage } from "@/lib/accessControl";
 import { dataRepository } from "@/lib/storage";
 
 export default function AdminPage() {
@@ -35,7 +36,7 @@ export default function AdminPage() {
     );
   }
 
-  if (profile?.planType !== "admin") {
+  if (!canAccessAdminPage(profile?.planType)) {
     return (
       <main>
         <PageHeader title="管理者ページ" eyebrow="ADMIN" back="/profile" />

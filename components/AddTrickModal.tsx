@@ -3,6 +3,9 @@
 import { Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useSupabaseData } from "@/hooks/useSupabaseData";
+import { canManageTricks } from "@/lib/accessControl";
+import { dataRepository } from "@/lib/storage";
 import type { TrainingType, TrickAccessType, TrickStance } from "@/lib/types";
 
 const snowCategories = ["プレス系", "オーリー系", "ノーリー系", "乗り系", "180系", "360系", "540系", "その他"] as const;
@@ -32,6 +35,8 @@ interface ApiError {
 
 export default function AddTrickModal({ open, trickType = "snow", onClose, onCreated }: AddTrickModalProps) {
   const isShibakatsu = trickType === "shibakatsu";
+  const [profile] = useSupabaseData(dataRepository.getProfile);
+  const canSkipPassword = canManageTricks(profile?.planType);
   const [name, setName] = useState("");
   const [difficulty, setDifficulty] = useState(1);
   const [category, setCategory] = useState<string>(snowCategories[0]);
@@ -79,7 +84,7 @@ export default function AddTrickModal({ open, trickType = "snow", onClose, onCre
   }
 
   async function submit(): Promise<void> {
-    if (!name.trim() || !password) {
+    if (!name.trim() || (!canSkipPassword && !password)) {
       setError(`${isShibakatsu ? "メニュー名" : "技名"}と管理パスワードを入力してください。`);
       return;
     }
@@ -108,7 +113,7 @@ export default function AddTrickModal({ open, trickType = "snow", onClose, onCre
           accessType,
           relatedSnowTrick,
           cautions,
-          password,
+          ...(canSkipPassword ? {} : { password }),
         }),
       });
       const result = (await response.json().catch(() => ({}))) as ApiError;
@@ -165,11 +170,12 @@ export default function AddTrickModal({ open, trickType = "snow", onClose, onCre
             </>
           )}
 
-          <label className="text-sm font-bold">管理パスワード <span className="text-rose-500">*</span><input type="password" autoComplete="off" className="field mt-2" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+          {!canSkipPassword && <label className="text-sm font-bold">管理パスワード <span className="text-rose-500">*</span><input type="password" autoComplete="off" className="field mt-2" value={password} onChange={(event) => setPassword(event.target.value)} /></label>}
+          {canSkipPassword && <p className="rounded-2xl bg-emerald-50 px-3 py-3 text-xs font-bold text-emerald-700">Editor / Admin権限のため、管理パスワードなしで追加できます。</p>}
         </div>
 
         {error && <p className="mt-4 rounded-2xl bg-rose-50 px-3 py-3 text-xs font-bold text-rose-600">{error}</p>}
-        <button type="button" disabled={submitting || !name.trim() || !password} onClick={submit} className="btn-primary mt-6 w-full py-4 disabled:bg-slate-200 disabled:text-slate-400">
+        <button type="button" disabled={submitting || !name.trim() || (!canSkipPassword && !password)} onClick={submit} className="btn-primary mt-6 w-full py-4 disabled:bg-slate-200 disabled:text-slate-400">
           <Plus size={18} />
           {submitting ? "追加中..." : isShibakatsu ? "シバカツ技を追加する" : "技を追加する"}
         </button>

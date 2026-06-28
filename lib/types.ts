@@ -58,7 +58,7 @@ export interface AiCoachMessage {
 }
 export interface Training { id: string; name: string; category: TrainingCategory; description: string; relatedTrickIds: string[]; minutes: number; }
 export interface Goal { id: string; season: string; type: GoalType; trickId: string; targetRate?: number; completed: boolean; }
-export type PlanType = "free" | "premium" | "admin" | "beta_tester";
+export type PlanType = "free" | "premium" | "beta_tester" | "editor" | "admin";
 export type AiFeatureType = "ai_chat" | "ai_advice" | "ai_video_analysis";
 export interface AiUsageStatus {
   featureType: AiFeatureType; planType: PlanType; used: number; limit: number | null; remaining: number | null; unlimited: boolean; limitReached: boolean;

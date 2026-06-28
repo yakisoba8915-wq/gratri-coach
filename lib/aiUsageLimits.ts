@@ -4,7 +4,7 @@ import type { AiFeatureType, AiUsageStatus, PlanType } from "./types";
 
 const usageLimitMessage = "本日のAI利用上限に達しました。明日また利用できます。";
 
-const dailyLimits: Record<Exclude<PlanType, "admin">, Record<AiFeatureType, number>> = {
+const dailyLimits: Record<Exclude<PlanType, "admin" | "editor">, Record<AiFeatureType, number>> = {
   free: {
     ai_chat: 3,
     ai_advice: 3,
@@ -30,7 +30,7 @@ interface UsageClientContext {
 export const AI_USAGE_LIMIT_MESSAGE = usageLimitMessage;
 
 function normalizePlanType(value: unknown): PlanType {
-  return value === "premium" || value === "admin" || value === "beta_tester" || value === "free" ? value : "free";
+  return value === "premium" || value === "admin" || value === "beta_tester" || value === "editor" || value === "free" ? value : "free";
 }
 
 function startOfTodayIso(): string {
@@ -40,7 +40,7 @@ function startOfTodayIso(): string {
 }
 
 function statusFor(featureType: AiFeatureType, planType: PlanType, used: number): AiUsageStatus {
-  if (planType === "admin") {
+  if (planType === "admin" || planType === "editor") {
     return { featureType, planType, used, limit: null, remaining: null, unlimited: true, limitReached: false };
   }
   const limit = dailyLimits[planType][featureType];
