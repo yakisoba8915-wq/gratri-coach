@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { dataRepository } from "@/lib/storage";
@@ -13,17 +14,21 @@ const LOGIN_DISMISSED_KEY = "gratri-login-prompt-dismissed";
 const TUTORIAL_SEEN_KEY = "gratri_onboarding_seen";
 const APP_READY_EVENT = "gratri-app-onboarding-ready";
 const APP_READY_KEY = "gratri-app-onboarding-ready";
+const GUEST_MODE_KEY = "gratri_guest_mode";
 
 export default function AppOnboarding() {
   const { user, loading } = useAuth();
+  const pathname = usePathname();
   const [profile, refreshProfile] = useSupabaseData(dataRepository.getProfile);
   const [browserStorageReady, setBrowserStorageReady] = useState(false);
   const [loginPromptDismissed, setLoginPromptDismissed] = useState(false);
   const [tutorialSeen, setTutorialSeen] = useState(false);
+  const [guestMode, setGuestMode] = useState(false);
 
   useEffect(() => {
     setLoginPromptDismissed(sessionStorage.getItem(LOGIN_DISMISSED_KEY) === "true");
     setTutorialSeen(localStorage.getItem(TUTORIAL_SEEN_KEY) === "true");
+    setGuestMode(localStorage.getItem(GUEST_MODE_KEY) === "true");
     setBrowserStorageReady(true);
   }, []);
 
@@ -66,6 +71,8 @@ export default function AppOnboarding() {
   }
 
   if (loading || !browserStorageReady) return null;
+
+  if (!user && pathname === "/" && !guestMode) return null;
 
   if (!tutorialSeen) {
     return <OnboardingTutorial onComplete={completeTutorial} />;

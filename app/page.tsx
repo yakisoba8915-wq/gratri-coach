@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { ArrowRight, CalendarPlus, Flame, MountainSnow, Target } from "lucide-react";
+import { useEffect, useState } from "react";
 import AIAdviceCard from "@/components/AIAdviceCard";
+import LandingPage from "@/components/LandingPage";
 import SectionTitle from "@/components/SectionTitle";
 import TrickCard from "@/components/TrickCard";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,8 +18,14 @@ import { getRecommendations, getTrendingTrick } from "@/lib/recommendations";
 import { dataRepository } from "@/lib/storage";
 import { getPracticeVideosForCurrentUser } from "@/lib/videoStorage";
 
+const GUEST_MODE_KEY = "gratri_guest_mode";
+const TUTORIAL_SEEN_KEY = "gratri_onboarding_seen";
+const LOGIN_DISMISSED_KEY = "gratri-login-prompt-dismissed";
+
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const [guestMode, setGuestMode] = useState(false);
+  const [guestChecked, setGuestChecked] = useState(false);
   const [selectedStance] = useSelectedTrickStance();
   const [tricks] = useSupabaseData(dataRepository.getTricks);
   const [logs] = useSupabaseData(dataRepository.getLogs);
@@ -34,6 +42,27 @@ export default function HomePage() {
   const trending = user ? getTrendingTrick(usableTricks, currentLogs) : undefined;
   const advice = user ? generateAdvice({ tricks: usableTricks, logs: currentLogs, videos: currentVideos, offTrainingPlan }) : undefined;
   const nextTask = currentLogs[0]?.nextTask;
+
+  useEffect(() => {
+    setGuestMode(localStorage.getItem(GUEST_MODE_KEY) === "true");
+    setGuestChecked(true);
+  }, []);
+
+  function startGuestMode(): void {
+    localStorage.setItem(GUEST_MODE_KEY, "true");
+    localStorage.setItem(TUTORIAL_SEEN_KEY, "true");
+    sessionStorage.setItem(LOGIN_DISMISSED_KEY, "true");
+    setGuestMode(true);
+    window.dispatchEvent(new Event("gratri-storage"));
+  }
+
+  if (loading || !guestChecked) {
+    return <main><div className="card py-12 text-center text-sm font-bold text-slate-400">読み込み中...</div></main>;
+  }
+
+  if (!user && !guestMode) {
+    return <LandingPage onGuestStart={startGuestMode} />;
+  }
 
   return (
     <main>

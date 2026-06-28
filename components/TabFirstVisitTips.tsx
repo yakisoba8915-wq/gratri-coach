@@ -1,6 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import TabFirstVisitTip from "./TabFirstVisitTip";
 
 const tips = {
@@ -36,8 +38,20 @@ const tips = {
   },
 } as const;
 
+const GUEST_MODE_KEY = "gratri_guest_mode";
+
 export default function TabFirstVisitTips() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const [guestMode, setGuestMode] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setGuestMode(localStorage.getItem(GUEST_MODE_KEY) === "true");
+    setReady(true);
+  }, []);
+
+  if (pathname === "/" && ready && !user && !guestMode) return null;
   const tip = tips[pathname as keyof typeof tips];
   if (!tip) return null;
   return <TabFirstVisitTip {...tip} />;
