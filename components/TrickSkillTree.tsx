@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { Circle, GitBranch, Lock } from "lucide-react";
+import { useState } from "react";
+import PremiumLockedTrickModal from "./PremiumLockedTrickModal";
 import { initialTricks } from "@/lib/mockData";
 import { canUseTrick } from "@/lib/accessControl";
 import { formatTrickName } from "@/lib/trickDisplay";
@@ -65,15 +69,7 @@ const sections: TreeSection[] = [
         id: "nollie",
         children: [
           { id: "nollie-bs-180", children: [{ id: "nollie-bs-360" }] },
-          {
-            id: "nollie-fs-180",
-            children: [
-              {
-                id: "nollie-fs-360",
-                children: [{ id: "fs-nollie-540" }],
-              },
-            ],
-          },
+          { id: "nollie-fs-180", children: [{ id: "nollie-fs-360", children: [{ id: "fs-nollie-540" }] }] },
         ],
       },
     ],
@@ -117,22 +113,45 @@ function buildDbChildren(tricks: Trick[]): Map<string, Trick[]> {
 
 function TrickNode({ trick, showStatus, selectedStance, planType }: { trick: Trick; showStatus: boolean; selectedStance: SelectedTrickDisplayStance; planType: PlanType }) {
   const allowed = canUseTrick(trick, planType);
+  const [premiumOpen, setPremiumOpen] = useState(false);
+
+  if (!allowed) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setPremiumOpen(true)}
+          className="block w-full min-w-0 rounded-2xl border border-amber-200 bg-amber-50/60 px-3 py-3 text-left opacity-80 shadow-sm transition active:scale-[.98]"
+        >
+          <div className="flex min-w-0 items-start gap-2">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white text-amber-600">
+              <Lock size={15} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="break-words text-sm font-black leading-5 text-slate-800">{formatTrickName(trick.nameJa, selectedStance)}</p>
+              <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-700">
+                <Lock size={10} />
+                Premium限定
+              </p>
+            </div>
+          </div>
+        </button>
+        <PremiumLockedTrickModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
+      </>
+    );
+  }
+
   return (
     <Link
       href={`/tricks/${trick.id}?stance=${selectedStance}`}
-      className={`block min-w-0 rounded-2xl border px-3 py-3 shadow-sm transition active:scale-[.98] ${
-        !allowed ? "border-amber-200 bg-amber-50/60" : showStatus ? statusStyles[trick.masteryStatus] : "border-slate-200 bg-white"
-      }`}
+      className={`block min-w-0 rounded-2xl border px-3 py-3 shadow-sm transition active:scale-[.98] ${showStatus ? statusStyles[trick.masteryStatus] : "border-slate-200 bg-white"}`}
     >
       <div className="flex min-w-0 items-start gap-2">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-ice text-[10px] font-black text-glacier">
-          Lv.{trick.difficulty}
-        </span>
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-ice text-[10px] font-black text-glacier">Lv.{trick.difficulty}</span>
         <div className="min-w-0 flex-1">
           <p className="break-words text-sm font-black leading-5">{formatTrickName(trick.nameJa, selectedStance)}</p>
-          <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{trick.category} / 対応: {trickStanceLabels[trick.stance ?? "both"]}</p>
+          <p className="mt-1 truncate text-[10px] font-bold text-slate-400">{trick.category} / 対応 {trickStanceLabels[trick.stance ?? "both"]}</p>
           <p className="mt-0.5 text-[10px] font-bold text-blue-500">{selectedStanceLabels[selectedStance]}</p>
-          {!allowed && <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[10px] font-black text-amber-700"><Lock size={10}/>有料トリック</p>}
         </div>
       </div>
     </Link>
@@ -161,12 +180,8 @@ function TreeBranch({
 
   const nextPath = new Set(path).add(definition.id);
   const staticChildren = definition.children ?? [];
-  const dynamicChildren = (dbChildren.get(definition.id) ?? []).map((child) => ({
-    id: child.id,
-  }));
-  const children = [...staticChildren, ...dynamicChildren].filter(
-    (child, index, list) => list.findIndex((item) => item.id === child.id) === index,
-  );
+  const dynamicChildren = (dbChildren.get(definition.id) ?? []).map((child) => ({ id: child.id }));
+  const children = [...staticChildren, ...dynamicChildren].filter((child, index, list) => list.findIndex((item) => item.id === child.id) === index);
 
   return (
     <div className="min-w-0">
@@ -175,15 +190,7 @@ function TreeBranch({
         <div className="relative ml-4 mt-2 space-y-2 border-l-2 border-sky-200 pl-5">
           {children.map((child) => (
             <div key={`${definition.id}-${child.id}`} className="relative min-w-0 before:absolute before:-left-5 before:top-6 before:h-0.5 before:w-5 before:bg-sky-200">
-              <TreeBranch
-                definition={child}
-                trickMap={trickMap}
-                dbChildren={dbChildren}
-                showStatus={showStatus}
-                selectedStance={selectedStance}
-                planType={planType}
-                path={nextPath}
-              />
+              <TreeBranch definition={child} trickMap={trickMap} dbChildren={dbChildren} showStatus={showStatus} selectedStance={selectedStance} planType={planType} path={nextPath} />
             </div>
           ))}
         </div>
@@ -196,11 +203,8 @@ export default function TrickSkillTree({ tricks, showStatus = false, selectedSta
   const snowTricks = tricks.filter((trick) => (trick.trickType ?? "snow") === "snow");
   const trickMap = new Map(snowTricks.map((trick) => [trick.id, trick]));
   const dbChildren = buildDbChildren(snowTricks);
-  const unresolved = snowTricks.filter(
-    (trick) =>
-      !initialIds.has(trick.id) &&
-      (trick.prerequisites.length === 0 || Boolean(trick.prerequisiteText?.trim())),
-  ).filter((trick) => !Array.from(dbChildren.values()).flat().some((child) => child.id === trick.id));
+  const assignedChildIds = new Set(Array.from(dbChildren.values()).flat().map((child) => child.id));
+  const unresolved = snowTricks.filter((trick) => !initialIds.has(trick.id) && (trick.prerequisites.length === 0 || Boolean(trick.prerequisiteText?.trim())) && !assignedChildIds.has(trick.id));
 
   return (
     <div className="space-y-6">
@@ -219,16 +223,7 @@ export default function TrickSkillTree({ tricks, showStatus = false, selectedSta
             </div>
             <div className="grid min-w-0 gap-4 sm:grid-cols-2">
               {section.roots.map((root) => (
-                <TreeBranch
-                  key={`${section.id}-${root.id}`}
-                  definition={root}
-                  trickMap={trickMap}
-                  dbChildren={dbChildren}
-                  showStatus={showStatus}
-                  selectedStance={selectedStance}
-                  planType={planType}
-                  path={new Set()}
-                />
+                <TreeBranch key={`${section.id}-${root.id}`} definition={root} trickMap={trickMap} dbChildren={dbChildren} showStatus={showStatus} selectedStance={selectedStance} planType={planType} path={new Set()} />
               ))}
             </div>
           </div>
@@ -241,7 +236,7 @@ export default function TrickSkillTree({ tricks, showStatus = false, selectedSta
             <Circle size={18} className="text-slate-400" />
             <div>
               <h2 className="font-black">その他</h2>
-              <p className="mt-1 text-xs text-slate-500">前提技が未設定、または辞典内で一致しない追加技です。</p>
+              <p className="mt-1 text-xs text-slate-500">前提技が未設定、または既存ツリーに一致しない追加トリックです。</p>
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
