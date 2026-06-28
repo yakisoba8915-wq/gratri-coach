@@ -240,6 +240,17 @@ UIは `lib/storage.ts` のデータリポジトリだけを参照するため、
 - βテスターはSupabase Table Editorで対象ユーザーの `profiles.plan_type` を `beta_tester` に変更すると、サブスクなしに全トリックを利用できます。
 - Stripeなどの実決済は未実装です。将来的に `plan_type` 更新処理を決済完了Webhookと連携する想定です。
 
+## 管理者ページ
+
+- `/admin` に管理者専用ページを追加しています。
+- `profiles.plan_type = 'admin'` のユーザーだけがアクセスできます。未ログイン時はログイン促進、admin以外は「管理者権限が必要です」と表示します。
+- プロフィール画面にはadminユーザーのみ「管理者ページ」リンクを表示します。
+- ユーザー一覧の取得は `app/api/admin/users/route.ts`、plan_type更新は `app/api/admin/users/[userId]/plan/route.ts` 経由で行います。
+- API Route側でもログインユーザーの `profiles.plan_type` を確認し、admin以外は403を返します。
+- `SUPABASE_SERVICE_ROLE_KEY` はAPI Route内だけで使用し、クライアントには出しません。`NEXT_PUBLIC_` を付けないでください。
+- 変更可能なplan_typeは `free` / `premium` / `beta_tester` / `admin` です。
+- profilesに `email` や `created_at` カラムが存在する場合のみ一覧に表示します。存在しない場合でもUI上は省略されます。
+
 ## シバカツ用トリック一覧
 
 - トリック画面上部で「通常トリック」と「シバカツトリック」を切り替えられます。

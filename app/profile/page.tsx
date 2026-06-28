@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Camera, ChevronRight, Save, Target, Trash2, Trees, UserRound } from "lucide-react";
+import { Camera, ChevronRight, Save, ShieldCheck, Target, Trash2, Trees, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import AuthButton from "@/components/AuthButton";
 import FeedbackSection from "@/components/FeedbackSection";
@@ -232,6 +232,13 @@ export default function ProfilePage() {
           <span className="flex-1 font-bold">技ツリー</span>
           <ChevronRight className="text-slate-300" />
         </Link>
+        {user && profile.planType === "admin" && (
+          <Link href="/admin" className="flex items-center gap-3 rounded-2xl p-3">
+            <ShieldCheck className="text-amber-500" />
+            <span className="flex-1 font-bold">管理者ページ</span>
+            <ChevronRight className="text-slate-300" />
+          </Link>
+        )}
       </div>
 
       <FeedbackSection isLoggedIn={Boolean(user)} />
