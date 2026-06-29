@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, CalendarPlus, Flame, MountainSnow, Target } from "lucide-react";
 import { useEffect, useState } from "react";
 import AIAdviceCard from "@/components/AIAdviceCard";
+import GrowthAnalyticsCard from "@/components/GrowthAnalyticsCard";
 import LandingPage from "@/components/LandingPage";
 import SectionTitle from "@/components/SectionTitle";
 import SeasonModeToggle from "@/components/SeasonModeToggle";
@@ -31,12 +32,14 @@ export default function HomePage() {
   const [seasonMode, setSeasonMode] = useState<SeasonMode>("off_season");
   const [selectedStance] = useSelectedTrickStance();
   const [tricks] = useSupabaseData(dataRepository.getTricks);
+  const [allTricks] = useSupabaseData(dataRepository.getAllTricks);
   const [logs] = useSupabaseData(dataRepository.getLogs);
   const [goals] = useSupabaseData(dataRepository.getGoals);
   const [profile] = useSupabaseData(dataRepository.getProfile);
   const [offTrainingPlan] = useSupabaseData(dataRepository.getOffTrainingPlan);
   const [practiceVideos] = useSupabaseData(getPracticeVideosForCurrentUser);
   const currentTricks = tricks ?? initialTricks;
+  const analyticsTricks = allTricks ?? currentTricks;
   const planType = user ? profile?.planType ?? "free" : "free";
   const usableTricks = currentTricks.filter((trick) => canUseTrick(trick, planType));
   const currentLogs = user ? (logs ?? []) : [];
@@ -120,6 +123,8 @@ export default function HomePage() {
       </Link>
 
       {advice && <AIAdviceCard advice={advice} tricks={usableTricks} logs={currentLogs} videos={currentVideos} goals={goals ?? []} profile={profile} offTrainingPlan={offTrainingPlan} selectedStance={selectedStance} />}
+
+      <GrowthAnalyticsCard isLoggedIn={Boolean(user)} logs={currentLogs} tricks={analyticsTricks} seasonMode={seasonMode} selectedStance={selectedStance} />
 
       <section className="mb-8">
         <SectionTitle title={recommendationTitle} subtitle={recommendationSubtitle} href={isInSeason ? "/tricks" : "/training"} />
