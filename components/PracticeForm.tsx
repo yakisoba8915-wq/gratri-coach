@@ -14,6 +14,16 @@ import { dataRepository } from "@/lib/storage";
 import { snowConditions, type PracticeLog, type SnowCondition, type TrainingType } from "@/lib/types";
 import PracticeVideoUploader, { type PracticeVideoUploaderHandle } from "@/components/PracticeVideoUploader";
 
+function toNonNegativeInt(value: string): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.floor(n);
+}
+
+function numericText(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
 export default function PracticeForm() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -30,12 +40,12 @@ export default function PracticeForm() {
   const [trickId, setTrickId] = useState("");
   const [trickSearch, setTrickSearch] = useState("");
   const [resortName, setResortName] = useState("");
-  const [successCount, setSuccessCount] = useState(0);
-  const [failCount, setFailCount] = useState(0);
+  const [successCount, setSuccessCount] = useState("");
+  const [failCount, setFailCount] = useState("");
   const [snowCondition, setSnowCondition] = useState<SnowCondition>(snowConditions[snowConditions.length - 1]);
-  const [durationMinutes, setDurationMinutes] = useState(15);
-  const [reps, setReps] = useState(0);
-  const [sets, setSets] = useState(0);
+  const [durationMinutes, setDurationMinutes] = useState("");
+  const [reps, setReps] = useState("");
+  const [sets, setSets] = useState("");
   const [memo, setMemo] = useState("");
   const [selfAnalysis, setSelfAnalysis] = useState("");
   const [weakPoint, setWeakPoint] = useState("");
@@ -82,15 +92,20 @@ export default function PracticeForm() {
       trainingType,
       trickId,
       resortName: trainingType === "snow" ? resortName : "",
-      successCount,
-      failCount,
+      successCount: toNonNegativeInt(successCount),
+      failCount: toNonNegativeInt(failCount),
       snowCondition,
       memo,
       selfAnalysis,
       weakPoint,
       nextTask,
       videoUrls: videoUrls.filter(Boolean),
-      ...(trainingType === "shibakatsu" ? { shibakatsuMenu: selectedTrick.nameJa, durationMinutes, reps, sets } : {}),
+      ...(trainingType === "shibakatsu" ? {
+        shibakatsuMenu: selectedTrick.nameJa,
+        durationMinutes: toNonNegativeInt(durationMinutes),
+        reps: toNonNegativeInt(reps),
+        sets: toNonNegativeInt(sets),
+      } : {}),
     };
 
     setSaving(true);
@@ -196,15 +211,15 @@ export default function PracticeForm() {
           <div className="grid min-w-0 w-full max-w-full grid-cols-1 gap-3 sm:grid-cols-3">
             <label className="text-sm font-bold">
               実施時間
-              <input type="number" min="0" className="field mt-2" value={durationMinutes} onChange={(e) => setDurationMinutes(Math.max(0, Number(e.target.value)))} />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" className="field mt-2" value={durationMinutes} onChange={(e) => setDurationMinutes(numericText(e.target.value))} placeholder="0" />
             </label>
             <label className="text-sm font-bold">
               回数
-              <input type="number" min="0" className="field mt-2" value={reps} onChange={(e) => setReps(Math.max(0, Number(e.target.value)))} />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" className="field mt-2" value={reps} onChange={(e) => setReps(numericText(e.target.value))} placeholder="0" />
             </label>
             <label className="text-sm font-bold">
               セット数
-              <input type="number" min="0" className="field mt-2" value={sets} onChange={(e) => setSets(Math.max(0, Number(e.target.value)))} />
+              <input type="text" inputMode="numeric" pattern="[0-9]*" className="field mt-2" value={sets} onChange={(e) => setSets(numericText(e.target.value))} placeholder="0" />
             </label>
           </div>
         )}
@@ -215,11 +230,11 @@ export default function PracticeForm() {
         <div className="grid min-w-0 w-full max-w-full grid-cols-1 gap-3 min-[360px]:grid-cols-2">
           <label className="text-sm font-bold text-emerald-600">
             成功回数
-            <input type="number" min="0" className="field mt-2" value={successCount} onChange={(e) => setSuccessCount(Math.max(0, Number(e.target.value)))} />
+            <input type="text" inputMode="numeric" pattern="[0-9]*" className="field mt-2" value={successCount} onChange={(e) => setSuccessCount(numericText(e.target.value))} placeholder="0" />
           </label>
           <label className="text-sm font-bold text-rose-500">
             失敗回数
-            <input type="number" min="0" className="field mt-2" value={failCount} onChange={(e) => setFailCount(Math.max(0, Number(e.target.value)))} />
+            <input type="text" inputMode="numeric" pattern="[0-9]*" className="field mt-2" value={failCount} onChange={(e) => setFailCount(numericText(e.target.value))} placeholder="0" />
           </label>
         </div>
       </div>
