@@ -22,7 +22,7 @@ const filterFieldClass =
 export default function PracticePage() {
   const { user } = useAuth();
   const [storedLogs] = useSupabaseData(dataRepository.getLogs);
-  const [storedTricks] = useSupabaseData(dataRepository.getTricks);
+  const [storedTricks] = useSupabaseData(dataRepository.getAllTricks);
   const [profile] = useSupabaseData(dataRepository.getProfile);
   const [selectedStance] = useSelectedTrickStance();
   const logs = user ? (storedLogs ?? []) : [];

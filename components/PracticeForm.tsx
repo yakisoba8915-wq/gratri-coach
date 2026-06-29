@@ -1,40 +1,38 @@
 "use client";
 
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Lock, Plus, Save, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
-import { initialTricks } from "@/lib/mockData";
-import { dataRepository } from "@/lib/storage";
 import { canUseTrick } from "@/lib/accessControl";
 import { formatTrickName } from "@/lib/trickDisplay";
+import { initialTricks } from "@/lib/mockData";
+import { dataRepository } from "@/lib/storage";
 import { snowConditions, type PracticeLog, type SnowCondition, type TrainingType } from "@/lib/types";
 import PracticeVideoUploader, { type PracticeVideoUploaderHandle } from "@/components/PracticeVideoUploader";
-
-const shibakatsuMenus = ["プレス練習", "ノーズプレス姿勢", "テールプレス姿勢", "乗せ替え練習", "オーリー動作確認", "ノーリー動作確認", "回転導入練習", "着地姿勢確認"];
 
 export default function PracticeForm() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const videoUploaderRef = useRef<PracticeVideoUploaderHandle>(null);
-  const [storedTricks] = useSupabaseData(dataRepository.getTricks);
+  const [storedTricks] = useSupabaseData(dataRepository.getAllTricks);
   const [profile] = useSupabaseData(dataRepository.getProfile);
   const [selectedStance] = useSelectedTrickStance();
   const planType = user ? profile?.planType ?? "free" : "free";
-  const tricks = (storedTricks ?? initialTricks).filter((trick) => canUseTrick(trick, planType));
+  const allTricks = storedTricks ?? initialTricks;
   const [logId] = useState(() => `log-${Date.now()}`);
 
   const [trainingType, setTrainingType] = useState<TrainingType>("snow");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [trickId, setTrickId] = useState("");
+  const [trickSearch, setTrickSearch] = useState("");
   const [resortName, setResortName] = useState("");
   const [successCount, setSuccessCount] = useState(0);
   const [failCount, setFailCount] = useState(0);
   const [snowCondition, setSnowCondition] = useState<SnowCondition>(snowConditions[snowConditions.length - 1]);
-  const [shibakatsuMenu, setShibakatsuMenu] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(15);
   const [reps, setReps] = useState(0);
   const [sets, setSets] = useState(0);
@@ -46,16 +44,35 @@ export default function PracticeForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const typeTricks = useMemo(
+    () => allTricks.filter((trick) => (trick.trickType ?? "snow") === trainingType),
+    [allTricks, trainingType],
+  );
+  const filteredTricks = useMemo(() => {
+    const normalizedQuery = trickSearch.trim().toLowerCase();
+    if (!normalizedQuery) return typeTricks;
+    return typeTricks.filter((trick) =>
+      `${trick.nameJa} ${trick.nameEn} ${trick.category}`.toLowerCase().includes(normalizedQuery),
+    );
+  }, [typeTricks, trickSearch]);
+  const selectedTrick = typeTricks.find((trick) => trick.id === trickId);
+  const hasLockedOptions = filteredTricks.some((trick) => !canUseTrick(trick, planType));
+
+  useEffect(() => {
+    setTrickId("");
+    setTrickSearch("");
+  }, [trainingType]);
+
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     setError("");
 
     if (!date || !trickId) {
-      setError("日付と技名を入力してください");
+      setError("日付と技名を選択してください");
       return;
     }
-    if (trainingType === "shibakatsu" && !shibakatsuMenu.trim()) {
-      setError("シバカツ練習メニューを入力してください");
+    if (!selectedTrick || !canUseTrick(selectedTrick, planType)) {
+      setError("選択できる技を選んでください");
       return;
     }
 
@@ -73,7 +90,7 @@ export default function PracticeForm() {
       weakPoint,
       nextTask,
       videoUrls: videoUrls.filter(Boolean),
-      ...(trainingType === "shibakatsu" ? { shibakatsuMenu: shibakatsuMenu.trim(), durationMinutes, reps, sets } : {}),
+      ...(trainingType === "shibakatsu" ? { shibakatsuMenu: selectedTrick.nameJa, durationMinutes, reps, sets } : {}),
     };
 
     setSaving(true);
@@ -95,7 +112,7 @@ export default function PracticeForm() {
     return (
       <div className="card py-12 text-center">
         <p className="text-sm text-slate-400">練習記録の追加にはログインが必要です</p>
-        <p className="mt-2 text-xs font-bold text-slate-400">ログインすると動画を保存できます</p>
+        <p className="mt-2 text-xs font-bold text-slate-400">ログインすると動画も保存できます</p>
         <Link href="/profile" className="btn-primary mt-4">
           プロフィールでログイン
         </Link>
@@ -125,34 +142,44 @@ export default function PracticeForm() {
           <input type="date" required className="field mt-2" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
 
-        {trainingType === "snow" ? (
+        {trainingType === "snow" && (
           <label className="text-sm font-bold">
             ゲレンデ
             <input className="field mt-2" value={resortName} onChange={(e) => setResortName(e.target.value)} placeholder="例：かぐらスキー場" />
           </label>
-        ) : (
-          <label className="text-sm font-bold">
-            練習メニュー <span className="text-rose-500">*</span>
-            <input className="field mt-2" list="shibakatsu-menu-list" value={shibakatsuMenu} onChange={(e) => setShibakatsuMenu(e.target.value)} placeholder="例：乗せ替え練習" />
-            <datalist id="shibakatsu-menu-list">
-              {shibakatsuMenus.map((menu) => (
-                <option key={menu} value={menu} />
-              ))}
-            </datalist>
-          </label>
         )}
 
-        <label className="text-sm font-bold">
-          {trainingType === "snow" ? "技名" : "関連トリック"} <span className="text-rose-500">*</span>
+        <div className="text-sm font-bold">
+          {trainingType === "snow" ? "技名" : "シバカツトリック"} <span className="text-rose-500">*</span>
+          <div className="relative mt-2">
+            <Search className="absolute left-4 top-3.5 text-slate-400" size={17} />
+            <input className="field pl-11" value={trickSearch} onChange={(e) => setTrickSearch(e.target.value)} placeholder="技を選択" />
+          </div>
           <select required className="field mt-2" value={trickId} onChange={(e) => setTrickId(e.target.value)}>
-            <option value="">選択してください</option>
-            {tricks.map((trick) => (
-              <option key={trick.id} value={trick.id}>
-                {formatTrickName(trick.nameJa, selectedStance)}
-              </option>
-            ))}
+            <option value="">技を選択</option>
+            {filteredTricks.map((trick) => {
+              const selectable = canUseTrick(trick, planType);
+              return (
+                <option key={trick.id} value={trick.id} disabled={!selectable}>
+                  {selectable ? "" : "🔒 Premium限定 / "}
+                  {formatTrickName(trick.nameJa, selectedStance)} / Lv.{trick.difficulty}
+                </option>
+              );
+            })}
           </select>
-        </label>
+          {trainingType === "shibakatsu" && typeTricks.length === 0 && (
+            <p className="mt-2 rounded-2xl bg-slate-50 px-3 py-3 text-xs font-bold text-slate-400">シバカツトリックがまだありません</p>
+          )}
+          {typeTricks.length > 0 && filteredTricks.length === 0 && (
+            <p className="mt-2 rounded-2xl bg-slate-50 px-3 py-3 text-xs font-bold text-slate-400">検索条件に合う技がありません</p>
+          )}
+          {hasLockedOptions && (
+            <p className="mt-2 flex items-center gap-1 text-xs font-bold text-amber-600">
+              <Lock size={13} />
+              🔒 Premium限定の技は現在のプランでは選択できません
+            </p>
+          )}
+        </div>
 
         {trainingType === "snow" && (
           <label className="text-sm font-bold">
