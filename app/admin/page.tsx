@@ -3,6 +3,7 @@
 import Link from "next/link";
 import AdminUserManagement from "@/components/AdminUserManagement";
 import AuthButton from "@/components/AuthButton";
+import BetaInviteCodeAdmin from "@/components/BetaInviteCodeAdmin";
 import PageHeader from "@/components/PageHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
@@ -56,7 +57,10 @@ export default function AdminPage() {
       <p className="mb-5 text-sm font-bold leading-6 text-slate-500">
         ユーザーのplan_typeを変更できます。API側でもadmin権限を検証しています。
       </p>
-      <AdminUserManagement />
+      <div className="space-y-6">
+        <BetaInviteCodeAdmin />
+        <AdminUserManagement />
+      </div>
     </main>
   );
 }

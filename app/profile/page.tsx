@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Camera, ChevronRight, Save, ShieldCheck, Target, Trash2, Trees, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import AuthButton from "@/components/AuthButton";
+import BetaInviteRedeemForm from "@/components/BetaInviteRedeemForm";
 import FeedbackSection from "@/components/FeedbackSection";
 import PageHeader from "@/components/PageHeader";
 import StatCard from "@/components/StatCard";
@@ -195,11 +196,16 @@ export default function ProfilePage() {
         <p className="mt-2 text-xs font-bold leading-5 text-slate-500">
           {profile.planType === "beta_tester"
             ? "βテスター特典によりPremium機能を利用できます。"
-            : profile.planType === "premium" || profile.planType === "admin"
+            : profile.planType === "premium" || profile.planType === "admin" || profile.planType === "editor"
               ? "追加トリックを含むPremium機能を利用できます。"
               : "Freeでは初期20トリックを利用できます。追加トリックはPremium限定です。"}
         </p>
       </section>
+
+      {user && profile.planType !== "premium" && profile.planType !== "beta_tester" && profile.planType !== "editor" && profile.planType !== "admin" && (
+        <BetaInviteRedeemForm isLoggedIn={Boolean(user)} onRedeemed={refresh} />
+      )}
+      {!user && <BetaInviteRedeemForm isLoggedIn={false} onRedeemed={refresh} />}
 
       <section className="card mb-4 grid gap-4">
         <h2 className="font-black">基本情報</h2>
