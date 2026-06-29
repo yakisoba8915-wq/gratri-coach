@@ -8,6 +8,7 @@ export type GoalType = "技をメイクする" | "成功率を上げる";
 export type Stance = "レギュラー" | "グーフィー";
 export type TrickStance = "regular" | "goofy" | "both";
 export type TrickAccessType = "free" | "premium";
+export type SeasonMode = "in_season" | "off_season";
 
 export interface Trick {
   id: string; nameJa: string; nameEn: string; category: string; difficulty: number;
