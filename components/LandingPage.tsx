@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ArrowRight, Bot, CheckCircle2, Crown, Dumbbell, Eye, Film, LogIn, MountainSnow, NotebookPen, Sparkles, TreePine } from "lucide-react";
 import { useState } from "react";
 import { signInWithGoogle } from "@/lib/auth";
@@ -46,18 +47,32 @@ export default function LandingPage({ onGuestStart }: { onGuestStart: () => void
           <p className="mt-4 max-w-lg text-sm font-bold leading-7 text-white/80">
             グラトリの練習記録・トリック辞典・オフトレ・AIアドバイスをひとつに。
           </p>
-          <div className="mt-7 grid gap-3 sm:grid-cols-3">
-            <button onClick={login} disabled={pending} className="rounded-2xl bg-white px-5 py-4 text-sm font-black text-navy shadow-lg transition active:scale-[.98] disabled:opacity-60">
-              無料で始める
-            </button>
-            <button onClick={login} disabled={pending} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-navy/25 px-5 py-4 text-sm font-black text-white ring-1 ring-white/20 transition active:scale-[.98] disabled:opacity-60">
+          <div className="mt-7 grid gap-3">
+            <button onClick={login} disabled={pending} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-white px-5 py-4 text-base font-black text-navy shadow-lg transition active:scale-[.98] disabled:opacity-60">
               <LogIn size={17} />
-              {pending ? "接続中..." : "Googleでログイン"}
+              {pending ? "接続中..." : "Googleでログインして始める"}
             </button>
-            <button onClick={onGuestStart} disabled={pending} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white/10 px-5 py-4 text-sm font-black text-white ring-1 ring-white/20 transition active:scale-[.98]">
-              <Eye size={17} />
-              ログインせずに見る
-            </button>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button onClick={onGuestStart} disabled={pending} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-cyan-100 px-5 py-4 text-sm font-black text-navy transition active:scale-[.98] disabled:opacity-60">
+                <Eye size={17} />
+                ログインせずに見る
+              </button>
+              <Link href="/premium" className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-amber-100 px-5 py-4 text-sm font-black text-amber-800 shadow-sm transition active:scale-[.98]">
+                <Crown size={17} />
+                Premiumプランを見る
+              </Link>
+            </div>
+          </div>
+          <div className="mt-4 flex items-start gap-3 rounded-3xl bg-white/95 p-4 text-navy shadow-lg shadow-navy/10">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-cyan-50 text-lg">🧪</div>
+            <div>
+              <h2 className="text-sm font-black">🧪 β版公開中</h2>
+              <p className="mt-1 text-xs font-bold leading-6 text-slate-600">
+                現在β版を公開中です。<br />
+                初期20トリックは無料で利用できます。Premium機能は順次追加予定です。<br />
+                ご意見・ご要望はプロフィール画面の「フィードバック」からお送りください。
+              </p>
+            </div>
           </div>
           {error && <p className="mt-4 rounded-2xl bg-white/15 px-4 py-3 text-xs font-bold text-white">{error}</p>}
         </div>
