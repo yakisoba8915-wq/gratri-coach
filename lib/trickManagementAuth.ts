@@ -11,6 +11,12 @@ interface TrickManagementAuthResult {
   status?: number;
 }
 
+interface TrickManagementAuthOptions {
+  allowPassword?: boolean;
+  requireLogin?: boolean;
+  requireManager?: boolean;
+}
+
 function bearerToken(request: Request): string {
   const authorization = request.headers.get("authorization") ?? "";
   return authorization.toLowerCase().startsWith("bearer ") ? authorization.slice(7).trim() : "";
@@ -20,7 +26,10 @@ function normalizePlanType(value: unknown): PlanType {
   return value === "premium" || value === "admin" || value === "beta_tester" || value === "editor" ? value : "free";
 }
 
-export async function authorizeTrickMutation(request: Request, password?: string): Promise<TrickManagementAuthResult> {
+export async function authorizeTrickMutation(request: Request, password?: string, options: TrickManagementAuthOptions = {}): Promise<TrickManagementAuthResult> {
+  const allowPassword = options.allowPassword ?? true;
+  const requireLogin = options.requireLogin ?? false;
+  const requireManager = options.requireManager ?? false;
   const adminPassword = process.env.TRICK_ADMIN_PASSWORD;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -59,6 +68,15 @@ export async function authorizeTrickMutation(request: Request, password?: string
   }
 
   const canManage = canManageTricks(planType);
+  if (requireLogin && !createdBy) {
+    return { adminClient, createdBy, planType, canManage, error: "ログインが必要です。", status: 401 };
+  }
+  if (requireManager && !canManage) {
+    return { adminClient, createdBy, planType, canManage, error: "EditorまたはAdmin権限が必要です。", status: 403 };
+  }
+  if (!allowPassword && !canManage) {
+    return { adminClient, createdBy, planType, canManage, error: "EditorまたはAdmin権限が必要です。", status: 403 };
+  }
   if (!canManage && !adminPassword) {
     return {
       adminClient,

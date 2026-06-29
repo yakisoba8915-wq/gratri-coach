@@ -1,10 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { aiLimitPlan, isAiUnlimited } from "./accessControl";
 import { supabase } from "./supabase";
 import type { AiFeatureType, AiUsageStatus, PlanType } from "./types";
 
 const usageLimitMessage = "本日のAI利用上限に達しました。明日また利用できます。";
 
-const dailyLimits: Record<Exclude<PlanType, "admin" | "editor">, Record<AiFeatureType, number>> = {
+const dailyLimits: Record<Exclude<PlanType, "admin">, Record<AiFeatureType, number>> = {
   free: {
     ai_chat: 3,
     ai_advice: 3,
@@ -16,6 +17,11 @@ const dailyLimits: Record<Exclude<PlanType, "admin" | "editor">, Record<AiFeatur
     ai_video_analysis: 10,
   },
   beta_tester: {
+    ai_chat: 50,
+    ai_advice: 50,
+    ai_video_analysis: 10,
+  },
+  editor: {
     ai_chat: 50,
     ai_advice: 50,
     ai_video_analysis: 10,
@@ -40,10 +46,10 @@ function startOfTodayIso(): string {
 }
 
 function statusFor(featureType: AiFeatureType, planType: PlanType, used: number): AiUsageStatus {
-  if (planType === "admin" || planType === "editor") {
+  if (isAiUnlimited(planType)) {
     return { featureType, planType, used, limit: null, remaining: null, unlimited: true, limitReached: false };
   }
-  const limit = dailyLimits[planType][featureType];
+  const limit = dailyLimits[aiLimitPlan(planType)][featureType];
   const remaining = Math.max(0, limit - used);
   return { featureType, planType, used, limit, remaining, unlimited: false, limitReached: remaining <= 0 };
 }

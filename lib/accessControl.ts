@@ -1,5 +1,5 @@
 import { initialTricks } from "./mockData";
-import type { PlanType, Trick } from "./types";
+import type { AiFeatureType, PlanType, Trick } from "./types";
 
 const initialFreeTrickIds = new Set(initialTricks.map((trick) => trick.id));
 
@@ -19,8 +19,31 @@ export function canManageTricks(planType: PlanType | null | undefined): boolean 
   return planType === "admin" || planType === "editor";
 }
 
+export function canEditTricks(planType: PlanType | null | undefined): boolean {
+  return canManageTricks(planType);
+}
+
+export function canDeleteTricks(planType: PlanType | null | undefined): boolean {
+  return canManageTricks(planType);
+}
+
 export function canAccessAdminPage(planType: PlanType | null | undefined): boolean {
   return planType === "admin";
+}
+
+export function canUseAI(featureType: AiFeatureType, planType: PlanType | null | undefined, isLoggedIn: boolean): boolean {
+  if (featureType === "ai_video_analysis") return false;
+  if (featureType === "ai_chat") return true;
+  return isLoggedIn || planType === "admin";
+}
+
+export function isAiUnlimited(planType: PlanType | null | undefined): boolean {
+  return planType === "admin";
+}
+
+export function aiLimitPlan(planType: PlanType | null | undefined): Exclude<PlanType, "admin"> {
+  if (planType === "premium" || planType === "beta_tester" || planType === "editor") return planType;
+  return "free";
 }
 
 export function canUsePremiumTricks(planType: PlanType | null | undefined): boolean {

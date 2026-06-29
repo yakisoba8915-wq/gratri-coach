@@ -34,7 +34,7 @@ function normalized(value: string): string {
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as CreateTrickBody;
-  const authorization = await authorizeTrickMutation(request, body.password);
+  const authorization = await authorizeTrickMutation(request, body.password, { allowPassword: true, requireLogin: true });
   if (authorization.error) return NextResponse.json({ error: authorization.error }, { status: authorization.status ?? 401 });
   const { adminClient, createdBy } = authorization;
 
