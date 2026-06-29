@@ -27,14 +27,35 @@ interface OpenAiChatResponse {
   choices?: Array<{ message?: { content?: string } }>;
 }
 
-function ruleBasedReply(message: string, category?: string): string {
+type ChatSource = "openai" | "rule";
+type ChatErrorType = "missing_api_key" | "openai_error" | "usage_limit" | "invalid_request";
+
+interface ChatResponseBody {
+  reply: string;
+  source: ChatSource;
+  errorType?: ChatErrorType;
+}
+
+const missingApiKeyMessage = "AI APIが未設定のため、基本アドバイスを表示しています。";
+const openAiErrorMessage = "AI応答の生成に失敗しました。少し時間をおいてもう一度お試しください。";
+
+function ruleBasedReply(message: string, category?: string, prefix = missingApiKeyMessage): string {
   const text = `${category ?? ""} ${message}`.toLowerCase();
-  const prefix = "AI APIが未設定のため、基本アドバイスを表示しています。";
-  if (text.includes("シバカツ")) return `${prefix}\nシバカツでは、姿勢キープ、重心移動、乗せ替え、着地姿勢確認を短く反復しましょう。筋トレや柔軟と混ぜず、板操作の感覚に集中するのがおすすめです。`;
-  if (text.includes("オフトレ") || text.includes("筋トレ") || text.includes("柔軟")) return `${prefix}\nオフトレは体幹、股関節、足首を優先しましょう。15〜30分ならプランク、片足バランス、股関節ストレッチ、足首ストレッチから始めると雪上に繋がりやすいです。`;
-  if (text.includes("360") || text.includes("180") || text.includes("回転")) return `${prefix}\n回転系は前提の180を安定させてから、目線・肩・腰の順に先行動作を作りましょう。無理に回し切るより、抜けと着地姿勢を崩さない練習が近道です。`;
-  if (text.includes("ノーリー")) return `${prefix}\nノーリー系は前足側への荷重、上半身の先行、抜けのタイミングを分けて確認しましょう。まずノーリーFS/BS180の成功率を上げてから360へ進むのがおすすめです。`;
-  if (text.includes("練習メニュー") || text.includes("今日")) return `${prefix}\n今日の練習は、基礎10本、メイン技20本、最後に成功率と次回課題を記録する流れがおすすめです。疲れたら難度を下げて、良い形で終えましょう。`;
+  if (text.includes("シバカツ")) {
+    return `${prefix}\nシバカツでは、姿勢キープ、重心移動、乗せ替え、着地姿勢確認を短く反復しましょう。筋トレや柔軟と混ぜず、板操作の感覚に集中するのがおすすめです。`;
+  }
+  if (text.includes("オフトレ") || text.includes("筋トレ") || text.includes("柔軟")) {
+    return `${prefix}\nオフトレは体幹、股関節、足首を優先しましょう。15〜30分ならプランク、片足バランス、股関節ストレッチ、足首ストレッチから始めると雪上につながりやすいです。`;
+  }
+  if (text.includes("360") || text.includes("180") || text.includes("回転")) {
+    return `${prefix}\n回転系は前提の180を安定させてから、目線・肩・腰の順に先行動作を作りましょう。無理に回し切るより、抜けと着地姿勢を崩さない練習が近道です。`;
+  }
+  if (text.includes("ノーリー")) {
+    return `${prefix}\nノーリー系は前足側への荷重、上半身の先行、抜けのタイミングを分けて確認しましょう。まずノーリーFS/BS180の成功率を上げてから360へ進むのがおすすめです。`;
+  }
+  if (text.includes("練習メニュー") || text.includes("今日")) {
+    return `${prefix}\n今日の練習は、基礎10本、メイン技20本、最後に成功率と次回課題を記録する流れがおすすめです。疲れたら難度を下げて、良い形で終えましょう。`;
+  }
   return `${prefix}\nまず前提技が安定しているか確認し、小さな動きから練習しましょう。成功回数だけでなく、失敗した理由と次回課題を1つだけメモすると上達が見えやすくなります。`;
 }
 
@@ -80,18 +101,32 @@ function buildUserPrompt(body: ChatRequestBody): string {
   );
 }
 
-export async function POST(request: Request): Promise<NextResponse<{ reply: string; source: "openai" | "rule" }>> {
+async function readOpenAiError(response: Response): Promise<string> {
+  const text = await response.text().catch(() => "");
+  return text.slice(0, 1000);
+}
+
+export async function POST(request: Request): Promise<NextResponse<ChatResponseBody>> {
   const body = (await request.json().catch(() => ({}))) as ChatRequestBody;
   const message = body.message?.trim() ?? "";
-  const fallback = ruleBasedReply(message, body.category);
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
 
-  if (!message) return NextResponse.json({ reply: "質問を入力してください。", source: "rule" });
-  if (!apiKey) return NextResponse.json({ reply: fallback, source: "rule" });
+  if (!message) {
+    return NextResponse.json({ reply: "質問を入力してください。", source: "rule", errorType: "invalid_request" });
+  }
+
+  if (!apiKey) {
+    console.warn("[ai-chat] OPENAI_API_KEY is not set. Returning rule-based fallback.");
+    return NextResponse.json({ reply: ruleBasedReply(message, body.category), source: "rule", errorType: "missing_api_key" });
+  }
 
   const usageStatus = await getServerAiUsageStatus(request, "ai_chat");
-  if (!usageStatus) return NextResponse.json({ reply: fallback, source: "rule" });
-  if (usageStatus.limitReached) return NextResponse.json({ reply: AI_USAGE_LIMIT_MESSAGE, source: "rule" });
+  if (usageStatus?.limitReached) {
+    return NextResponse.json({ reply: AI_USAGE_LIMIT_MESSAGE, source: "rule", errorType: "usage_limit" });
+  }
+  if (!usageStatus) {
+    console.warn("[ai-chat] AI usage status could not be resolved. Continuing OpenAI call without usage limit enforcement for this request.");
+  }
 
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -101,7 +136,7 @@ export async function POST(request: Request): Promise<NextResponse<{ reply: stri
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -117,12 +152,27 @@ export async function POST(request: Request): Promise<NextResponse<{ reply: stri
       }),
     });
 
-    if (!response.ok) return NextResponse.json({ reply: fallback, source: "rule" });
+    if (!response.ok) {
+      const errorBody = await readOpenAiError(response);
+      console.error("[ai-chat] OpenAI API request failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorBody,
+      });
+      return NextResponse.json({ reply: openAiErrorMessage, source: "rule", errorType: "openai_error" }, { status: 502 });
+    }
+
     const data = (await response.json()) as OpenAiChatResponse;
     const reply = data.choices?.[0]?.message?.content?.trim();
-    if (reply) await recordServerAiUsage(request, "ai_chat");
-    return NextResponse.json({ reply: reply || fallback, source: reply ? "openai" : "rule" });
-  } catch {
-    return NextResponse.json({ reply: fallback, source: "rule" });
+    if (!reply) {
+      console.error("[ai-chat] OpenAI API returned an empty reply", { data });
+      return NextResponse.json({ reply: openAiErrorMessage, source: "rule", errorType: "openai_error" }, { status: 502 });
+    }
+
+    await recordServerAiUsage(request, "ai_chat");
+    return NextResponse.json({ reply, source: "openai" });
+  } catch (error) {
+    console.error("[ai-chat] OpenAI API call threw an exception", error);
+    return NextResponse.json({ reply: openAiErrorMessage, source: "rule", errorType: "openai_error" }, { status: 502 });
   }
 }

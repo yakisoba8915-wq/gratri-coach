@@ -152,8 +152,11 @@ export default function AIChat({ isLoggedIn, profile, practiceLogs, goals, offTr
             : {},
         }),
       });
-      const data = (await response.json()) as { reply?: string; source?: "openai" | "rule" };
+      const data = (await response.json()) as { reply?: string; source?: "openai" | "rule"; errorType?: "missing_api_key" | "openai_error" | "usage_limit" | "invalid_request" };
       const reply = data.reply || "回答を生成できませんでした。もう一度質問してください。";
+      if (!response.ok || data.errorType === "openai_error") {
+        setError("AI応答の生成に失敗しました。少し時間をおいてもう一度お試しください。");
+      }
       const assistantMessage: ChatMessage = { id: `assistant-${Date.now()}`, role: "assistant", content: reply };
       setMessages((current) => [...current, assistantMessage]);
 
@@ -166,7 +169,7 @@ export default function AIChat({ isLoggedIn, profile, practiceLogs, goals, offTr
       }
       await loadUsageStatus();
     } catch {
-      const fallback = "AI APIが未設定、または通信に失敗したため、基本アドバイスを表示しています。基礎技と前提技を確認し、無理のない範囲で練習しましょう。";
+      const fallback = "AI応答の生成に失敗しました。通信状況を確認し、少し時間をおいてもう一度お試しください。";
       setError("通信に失敗しました。少し時間を置いてもう一度試してください。");
       setMessages((current) => [...current, { id: `assistant-${Date.now()}`, role: "assistant", content: fallback }]);
       if (isLoggedIn) await saveAiCoachMessage({ role: "assistant", message: fallback, sourceType: "chat" });
