@@ -327,7 +327,6 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
 
   useEffect(() => {
     void loadVideos();
-    void loadUsageStatus();
   }, [practiceLogId]);
 
   if (loading) return <p className="mt-3 text-xs font-bold text-slate-400">動画を確認中...</p>;
@@ -341,6 +340,9 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
             <PlayCircle size={16} className="text-glacier" />
             保存済み動画
           </div>
+          <p className="rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-bold leading-5 text-gray-500">
+            AI解析は現在開発中です。正式公開までお待ちください。
+          </p>
           {usageStatus && (
             <p className="rounded-2xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-500">
               AI動画解析 残り {usageStatus.unlimited ? "無制限" : `${usageStatus.remaining} / ${usageStatus.limit} 回`}
@@ -364,12 +366,13 @@ export default function PracticeVideoList({ practiceLogId, log, trick }: Practic
                   </a>
                   <button
                     type="button"
-                    onClick={() => void analyzeVideo(video)}
-                    disabled={isAnalyzing}
-                    className="inline-flex items-center gap-1 rounded-full bg-glacier px-3 py-2 text-xs font-black text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled
+                    aria-disabled="true"
+                    title="現在開発中です。正式公開までお待ちください。"
+                    className="inline-flex cursor-not-allowed items-center gap-1 rounded-full border border-gray-300 bg-gray-200 px-3 py-2 text-xs font-black text-gray-600 shadow-sm"
                   >
-                    {isAnalyzing ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />}
-                    AI解析
+                    <BrainCircuit size={14} />
+                    AI解析（開発中）
                   </button>
                   <button type="button" onClick={() => void removeVideo(video)} className="rounded-full bg-white p-2 text-rose-500 shadow-sm" aria-label="動画を削除">
                     <Trash2 size={15} />
