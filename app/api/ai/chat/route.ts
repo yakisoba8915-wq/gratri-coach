@@ -23,8 +23,19 @@ interface ChatRequestBody {
   };
 }
 
-interface OpenAiChatResponse {
-  choices?: Array<{ message?: { content?: string } }>;
+interface ResponsesApiTextItem {
+  type?: string;
+  text?: string;
+}
+
+interface ResponsesApiOutputItem {
+  type?: string;
+  content?: ResponsesApiTextItem[];
+}
+
+interface OpenAiResponsesApiResponse {
+  output_text?: string;
+  output?: ResponsesApiOutputItem[];
 }
 
 type ChatSource = "openai" | "rule";
@@ -34,10 +45,77 @@ interface ChatResponseBody {
   reply: string;
   source: ChatSource;
   errorType?: ChatErrorType;
+  error?: string;
+  debug?: string;
 }
 
 const missingApiKeyMessage = "AI APIが未設定のため、基本アドバイスを表示しています。";
 const openAiErrorMessage = "AI応答の生成に失敗しました。少し時間をおいてもう一度お試しください。";
+const defaultModel = "gpt-4.1-mini";
+
+function isDevelopment(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
+
+function normalizeError(error: unknown): { message: string; stack?: string; name?: string; raw: string } {
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      raw: String(error),
+    };
+  }
+  return {
+    message: typeof error === "string" ? error : JSON.stringify(error),
+    raw: String(error),
+  };
+}
+
+function buildDebugPayload(params: {
+  error?: unknown;
+  status?: number | null;
+  statusText?: string | null;
+  body?: string | null;
+  responseText?: string | null;
+  model?: string;
+}): string {
+  const normalized = params.error ? normalizeError(params.error) : undefined;
+  return JSON.stringify(
+    {
+      error: normalized?.raw ?? null,
+      errorMessage: normalized?.message ?? null,
+      errorStack: normalized?.stack ?? null,
+      errorName: normalized?.name ?? null,
+      openAiStatus: params.status ?? null,
+      openAiStatusText: params.statusText ?? null,
+      openAiBody: params.body ?? null,
+      responseText: params.responseText ?? null,
+      model: params.model ?? null,
+    },
+    null,
+    2,
+  );
+}
+
+function errorResponse(params: {
+  errorType: ChatErrorType;
+  status?: number;
+  debug?: string;
+  reply?: string;
+}): NextResponse<ChatResponseBody> {
+  const reply = params.reply ?? openAiErrorMessage;
+  return NextResponse.json(
+    {
+      reply,
+      source: "rule",
+      errorType: params.errorType,
+      error: reply,
+      ...(isDevelopment() && params.debug ? { debug: params.debug } : {}),
+    },
+    { status: params.status ?? 200 },
+  );
+}
 
 function ruleBasedReply(message: string, category?: string, prefix = missingApiKeyMessage): string {
   const text = `${category ?? ""} ${message}`.toLowerCase();
@@ -101,78 +179,146 @@ function buildUserPrompt(body: ChatRequestBody): string {
   );
 }
 
-async function readOpenAiError(response: Response): Promise<string> {
-  const text = await response.text().catch(() => "");
-  return text.slice(0, 1000);
+function extractResponseText(data: OpenAiResponsesApiResponse): string {
+  const directText = data.output_text?.trim();
+  if (directText) return directText;
+
+  const nestedText = data.output
+    ?.flatMap((item) => item.content ?? [])
+    .map((content) => content.text ?? "")
+    .join("\n")
+    .trim();
+
+  return nestedText ?? "";
 }
 
 export async function POST(request: Request): Promise<NextResponse<ChatResponseBody>> {
   const body = (await request.json().catch(() => ({}))) as ChatRequestBody;
   const message = body.message?.trim() ?? "";
   const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const model = process.env.OPENAI_MODEL?.trim() || defaultModel;
+
+  console.log("OpenAI Key Exists:", Boolean(process.env.OPENAI_API_KEY));
 
   if (!message) {
-    return NextResponse.json({ reply: "質問を入力してください。", source: "rule", errorType: "invalid_request" });
+    return errorResponse({
+      errorType: "invalid_request",
+      reply: "質問を入力してください。",
+    });
   }
 
   if (!apiKey) {
     console.warn("[ai-chat] OPENAI_API_KEY is not set. Returning rule-based fallback.");
-    return NextResponse.json({ reply: ruleBasedReply(message, body.category), source: "rule", errorType: "missing_api_key" });
+    return errorResponse({
+      errorType: "missing_api_key",
+      reply: ruleBasedReply(message, body.category),
+    });
   }
 
   const usageStatus = await getServerAiUsageStatus(request, "ai_chat");
   if (usageStatus?.limitReached) {
-    return NextResponse.json({ reply: AI_USAGE_LIMIT_MESSAGE, source: "rule", errorType: "usage_limit" });
+    return errorResponse({
+      errorType: "usage_limit",
+      reply: AI_USAGE_LIMIT_MESSAGE,
+    });
   }
   if (!usageStatus) {
     console.warn("[ai-chat] AI usage status could not be resolved. Continuing OpenAI call without usage limit enforcement for this request.");
   }
 
+  let response: Response | null = null;
+  let responseText = "";
+  let responseBody = "";
+
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "あなたはグラトリ初心者〜中級者向けのスノーボードコーチです。ユーザーの過去相談、練習記録、動画解析、反映履歴があれば踏まえて、無理のない範囲で、技の習得順、練習メニュー、シバカツ、オフトレ、注意点をわかりやすく説明してください。回答は日本語で短く実践的にしてください。",
-          },
-          {
-            role: "user",
-            content: buildUserPrompt(body),
-          },
-        ],
+        model,
+        instructions:
+          "あなたはグラトリ初心者〜中級者向けのスノーボードコーチです。ユーザーの過去相談、練習記録、動画解析、反映履歴があれば踏まえて、無理のない範囲で、技の習得順、練習メニュー、シバカツ、オフトレ、注意点をわかりやすく説明してください。回答は日本語で短く実践的にしてください。",
+        input: buildUserPrompt(body),
         temperature: 0.5,
       }),
     });
 
+    responseText = await response.text();
+    responseBody = responseText;
+
     if (!response.ok) {
-      const errorBody = await readOpenAiError(response);
-      console.error("[ai-chat] OpenAI API request failed", {
+      const debug = buildDebugPayload({
         status: response.status,
         statusText: response.statusText,
-        body: errorBody,
+        body: responseBody,
+        responseText,
+        model,
       });
-      return NextResponse.json({ reply: openAiErrorMessage, source: "rule", errorType: "openai_error" }, { status: 502 });
+      console.error("[ai-chat] OpenAI API request failed", {
+        error: null,
+        errorMessage: null,
+        errorStack: null,
+        openAiStatus: response.status,
+        openAiStatusText: response.statusText,
+        openAiBody: responseBody,
+        responseText,
+        model,
+      });
+      return errorResponse({ errorType: "openai_error", status: 502, debug });
     }
 
-    const data = (await response.json()) as OpenAiChatResponse;
-    const reply = data.choices?.[0]?.message?.content?.trim();
+    const data = JSON.parse(responseText) as OpenAiResponsesApiResponse;
+    const reply = extractResponseText(data);
+
     if (!reply) {
-      console.error("[ai-chat] OpenAI API returned an empty reply", { data });
-      return NextResponse.json({ reply: openAiErrorMessage, source: "rule", errorType: "openai_error" }, { status: 502 });
+      const debug = buildDebugPayload({
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody,
+        responseText,
+        model,
+      });
+      console.error("[ai-chat] OpenAI API returned an empty reply", {
+        error: null,
+        errorMessage: "OpenAI response did not contain output_text",
+        errorStack: null,
+        openAiStatus: response.status,
+        openAiStatusText: response.statusText,
+        openAiBody: responseBody,
+        responseText,
+        model,
+      });
+      return errorResponse({ errorType: "openai_error", status: 502, debug });
     }
 
     await recordServerAiUsage(request, "ai_chat");
+    console.log("OpenAI Response Success");
     return NextResponse.json({ reply, source: "openai" });
   } catch (error) {
-    console.error("[ai-chat] OpenAI API call threw an exception", error);
-    return NextResponse.json({ reply: openAiErrorMessage, source: "rule", errorType: "openai_error" }, { status: 502 });
+    const normalized = normalizeError(error);
+    const debug = buildDebugPayload({
+      error,
+      status: response?.status ?? null,
+      statusText: response?.statusText ?? null,
+      body: responseBody || null,
+      responseText: responseText || null,
+      model,
+    });
+
+    console.error("[ai-chat] OpenAI API call failed", {
+      error,
+      errorMessage: normalized.message,
+      errorStack: normalized.stack,
+      openAiStatus: response?.status ?? null,
+      openAiStatusText: response?.statusText ?? null,
+      openAiBody: responseBody || null,
+      responseText: responseText || null,
+      model,
+    });
+
+    return errorResponse({ errorType: "openai_error", status: 502, debug });
   }
 }
