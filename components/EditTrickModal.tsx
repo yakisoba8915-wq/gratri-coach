@@ -44,7 +44,7 @@ function clampDifficulty(value: number): number {
 export default function EditTrickModal({ open, trick, onClose, onUpdated }: EditTrickModalProps) {
   const { user } = useAuth();
   const [profile] = useSupabaseData(dataRepository.getProfile);
-  const canSkipPassword = Boolean(user && canManageTricks(profile?.planType));
+  const canEdit = Boolean(user && canManageTricks(profile?.planType));
   const trickType: TrainingType = trick?.trickType ?? "snow";
   const isShibakatsu = trickType === "shibakatsu";
 
@@ -60,7 +60,6 @@ export default function EditTrickModal({ open, trick, onClose, onUpdated }: Edit
   const [prerequisite, setPrerequisite] = useState("");
   const [relatedSnowTrick, setRelatedSnowTrick] = useState("");
   const [cautions, setCautions] = useState("");
-  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -80,7 +79,6 @@ export default function EditTrickModal({ open, trick, onClose, onUpdated }: Edit
     setPrerequisite(trick.prerequisiteText ?? "");
     setRelatedSnowTrick(trick.relatedSnowTrick ?? "");
     setCautions(trick.cautions ?? "");
-    setPassword("");
     setError("");
   }, [isShibakatsu, open, trick]);
 
@@ -88,7 +86,6 @@ export default function EditTrickModal({ open, trick, onClose, onUpdated }: Edit
 
   function close(): void {
     if (submitting) return;
-    setPassword("");
     setError("");
     onClose();
   }
@@ -96,16 +93,12 @@ export default function EditTrickModal({ open, trick, onClose, onUpdated }: Edit
   async function submit(): Promise<void> {
     if (!trick) return;
     const currentTrick = trick;
-    if (!user) {
-      setError("ログインするとトリックを編集できます。");
+    if (!canEdit) {
+      setError("編集権限がありません");
       return;
     }
     if (!name.trim()) {
       setError(isShibakatsu ? "メニュー名を入力してください。" : "技名を入力してください。");
-      return;
-    }
-    if (!canSkipPassword && !password) {
-      setError("管理パスワードを入力してください。");
       return;
     }
 
@@ -133,7 +126,6 @@ export default function EditTrickModal({ open, trick, onClose, onUpdated }: Edit
           accessType,
           relatedSnowTrick,
           cautions,
-          ...(canSkipPassword ? {} : { password }),
         }),
       });
       const result = (await response.json().catch(() => ({}))) as ApiError;
@@ -154,7 +146,7 @@ export default function EditTrickModal({ open, trick, onClose, onUpdated }: Edit
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 id="edit-trick-title" className="text-xl font-black">{isShibakatsu ? "シバカツトリックを編集" : "トリックを編集"}</h2>
-            <p className="mt-1 text-xs leading-5 text-slate-500">DBに追加されたトリックのみ編集できます。初期20トリックは編集対象外です。</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">Admin / Editorのみ編集できます。保存内容はトリック一覧・詳細に反映されます。</p>
           </div>
           <button type="button" onClick={close} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500" aria-label="閉じる">
             <X size={18} />
@@ -163,20 +155,13 @@ export default function EditTrickModal({ open, trick, onClose, onUpdated }: Edit
 
         <div className="mt-5 grid gap-4">
           <label className="text-sm font-bold">
-            {isShibakatsu ? "メニュー名 / 技名" : "技名"} <span className="text-rose-500">*</span>
+            {isShibakatsu ? "メニュー名" : "技名"} <span className="text-rose-500">*</span>
             <input autoFocus className="field mt-2" value={name} onChange={(event) => setName(event.target.value)} />
           </label>
 
           <label className="text-sm font-bold">
             難易度 1〜10
-            <input
-              type="number"
-              min={1}
-              max={10}
-              className="field mt-2"
-              value={difficulty}
-              onChange={(event) => setDifficulty(clampDifficulty(Number(event.target.value)))}
-            />
+            <input type="number" min={1} max={10} className="field mt-2" value={difficulty} onChange={(event) => setDifficulty(clampDifficulty(Number(event.target.value)))} />
           </label>
 
           <label className="text-sm font-bold">
@@ -203,7 +188,7 @@ export default function EditTrickModal({ open, trick, onClose, onUpdated }: Edit
           {isShibakatsu ? (
             <>
               <label className="text-sm font-bold">
-                関連する雪上トリック
+                関連雪上トリック
                 <input className="field mt-2" value={relatedSnowTrick} onChange={(event) => setRelatedSnowTrick(event.target.value)} placeholder="例：オーリー、BS180" />
               </label>
               <label className="text-sm font-bold">説明<textarea rows={3} className="field mt-2 resize-none" value={description} onChange={(event) => setDescription(event.target.value)} /></label>
@@ -235,18 +220,11 @@ export default function EditTrickModal({ open, trick, onClose, onUpdated }: Edit
             </>
           )}
 
-          {!user && <p className="rounded-2xl bg-slate-50 px-3 py-3 text-xs font-bold text-slate-500">ログインするとトリックを編集できます。</p>}
-          {user && !canSkipPassword && (
-            <label className="text-sm font-bold">
-              管理パスワード <span className="text-rose-500">*</span>
-              <input type="password" autoComplete="off" className="field mt-2" value={password} onChange={(event) => setPassword(event.target.value)} />
-            </label>
-          )}
-          {canSkipPassword && <p className="rounded-2xl bg-emerald-50 px-3 py-3 text-xs font-bold text-emerald-700">Editor / Admin権限のため、管理パスワードなしで更新できます。</p>}
+          {!canEdit && <p className="rounded-2xl bg-rose-50 px-3 py-3 text-xs font-bold text-rose-600">編集権限がありません</p>}
         </div>
 
         {error && <p className="mt-4 rounded-2xl bg-rose-50 px-3 py-3 text-xs font-bold text-rose-600">{error}</p>}
-        <button type="button" disabled={!user || submitting || !name.trim() || (!canSkipPassword && !password)} onClick={submit} className="btn-primary mt-6 w-full py-4 disabled:bg-slate-200 disabled:text-slate-400">
+        <button type="button" disabled={!canEdit || submitting || !name.trim()} onClick={submit} className="btn-primary mt-6 w-full py-4 disabled:bg-slate-200 disabled:text-slate-400">
           <Save size={18} />
           {submitting ? "更新中..." : "トリックを更新する"}
         </button>

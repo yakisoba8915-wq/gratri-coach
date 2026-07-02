@@ -11,7 +11,7 @@ import TrickList from "@/components/TrickList";
 import { useAuth } from "@/hooks/useAuth";
 import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
-import { canUseTrick, isInitialFreeTrick } from "@/lib/accessControl";
+import { canManageTricks, canUseTrick } from "@/lib/accessControl";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
 import { masteryStatuses } from "@/lib/types";
@@ -88,6 +88,7 @@ export default function TricksPage() {
 
   const isShibakatsu = activeType === "shibakatsu";
   const planType = user ? profile?.planType ?? "free" : "free";
+  const canEditTricks = Boolean(user && canManageTricks(planType));
 
   return (
     <main>
@@ -185,7 +186,7 @@ export default function TricksPage() {
                 trick={trick}
                 selectedStance={selectedStance}
                 canUse={canUseTrick(trick, planType)}
-                editable={Boolean(user) && !isInitialFreeTrick(trick)}
+                editable={canEditTricks}
                 onEdit={setEditingTrick}
               />
             ))}
@@ -205,10 +206,8 @@ export default function TricksPage() {
           showUserData={Boolean(user)}
           selectedStance={selectedStance}
           planType={planType}
-          canEdit={Boolean(user)}
-          onEdit={(trick) => {
-            if (!isInitialFreeTrick(trick)) setEditingTrick(trick);
-          }}
+          canEdit={canEditTricks}
+          onEdit={setEditingTrick}
         />
       )}
 

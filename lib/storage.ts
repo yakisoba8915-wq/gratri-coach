@@ -11,7 +11,7 @@ type DataKey=keyof typeof baseKeys;
 interface PracticeLogRow {id:string;user_id:string;date:string;training_type?:PracticeLog["trainingType"];resort_name:string;trick_id:string;success_count:number;fail_count:number;memo:string;self_analysis:string;weak_point:string;next_task:string;snow_condition:PracticeLog["snowCondition"];video_urls:string[];shibakatsu_menu?:string|null;duration_minutes?:number|null;reps?:number|null;sets?:number|null;}
 interface GoalRow {id:string;user_id:string;season:string;type:Goal["type"];trick_id:string;target_rate:number|null;completed:boolean;}
 interface ProfileRow {id:string;user_id:string;display_name:string;stance:Profile["stance"];avatar_url:string|null;avatar_path:string|null;plan_type?:PlanType|null;trick_preferences:Record<string,Pick<Trick,"masteryStatus"|"favorite">>|null;}
-interface PublicTrickRow {id:string;name:string;difficulty:number;category:string;takeoff_type:string;spin_direction:string;description:string;tips:string;prerequisite:string;trick_type:PracticeLog["trainingType"];stance?:TrickStance|null;access_type?:TrickAccessType|null;related_snow_trick:string;cautions:string;created_by:string|null;is_official:boolean;}
+interface PublicTrickRow {id:string;name:string;difficulty:number;category:string;takeoff_type:string;spin_direction:string;description:string;tips:string;prerequisite:string;trick_type:PracticeLog["trainingType"];stance?:TrickStance|null;access_type?:TrickAccessType|null;related_snow_trick:string;cautions:string;created_by:string|null;is_official:boolean;source_trick_id?:string|null;}
 const emptyProfile:Profile={displayName:"",stance:"",avatarUrl:null,avatarPath:null,planType:"free"};
 
 const localKey=(key:DataKey,userId?:string)=>userId?`${baseKeys[key]}:${userId}`:baseKeys[key];
@@ -45,7 +45,7 @@ async function replaceGoals(rows:GoalRow[],userId:string):Promise<void>{if(!supa
 function normalizeTrickName(value:string):string{return value.trim().toLocaleLowerCase("ja-JP");}
 async function getPublicDatabaseTricks():Promise<Trick[]>{
   if(!supabase)return [];
-  const {data,error}=await supabase.from("tricks").select("id,name,difficulty,category,takeoff_type,spin_direction,description,tips,prerequisite,trick_type,stance,access_type,related_snow_trick,cautions,created_by,is_official").order("created_at",{ascending:true});
+  const {data,error}=await supabase.from("tricks").select("id,name,difficulty,category,takeoff_type,spin_direction,description,tips,prerequisite,trick_type,stance,access_type,related_snow_trick,cautions,created_by,is_official,source_trick_id").order("created_at",{ascending:true});
   if(error)throw error;
   const rows=(data??[]) as PublicTrickRow[];
   const nameToId=new Map<string,string>();
@@ -55,18 +55,18 @@ async function getPublicDatabaseTricks():Promise<Trick[]>{
     const prerequisiteNames=row.prerequisite.split(/[、,\n]/).map((item)=>item.trim()).filter(Boolean);
     const prerequisites=prerequisiteNames.map((name)=>nameToId.get(normalizeTrickName(name))).filter((id):id is string=>Boolean(id));
     return {
-      id:row.id,nameJa:row.name,nameEn:row.name,category:row.category,difficulty:row.difficulty,
+      id:row.source_trick_id || row.id,nameJa:row.name,nameEn:row.name,category:row.category,difficulty:row.difficulty,
       description:row.description,howTo:row.tips?[row.tips]:[],commonMistakes:[],prerequisites,
       relatedTrainings:[],referenceVideos:[],imageUrls:[],masteryStatus:masteryStatuses[0],favorite:false,
       takeoffType:row.takeoff_type,spinDirection:row.spin_direction,trickType:normalizeTrainingType(row.trick_type),stance:normalizeTrickStance(row.stance),accessType:normalizeTrickAccessType(row.access_type),
-      relatedSnowTrick:row.related_snow_trick??"",cautions:row.cautions??"",prerequisiteText:row.prerequisite??"",createdBy:row.created_by,isOfficial:row.is_official,
+      relatedSnowTrick:row.related_snow_trick??"",cautions:row.cautions??"",prerequisiteText:row.prerequisite??"",createdBy:row.created_by,isOfficial:row.is_official,sourceTrickId:row.source_trick_id??null,
     };
   });
 }
 function mergeTricks(databaseTricks:Trick[]):Trick[]{
   const seen=new Set<string>();
-  return [...initialTricks,...databaseTricks].filter((trick)=>{
-    const key=`${trick.trickType??"snow"}:${normalizeTrickName(trick.nameJa)}`;
+  return [...databaseTricks,...initialTricks].filter((trick)=>{
+    const key=`${trick.trickType??"snow"}:${trick.id}`;
     if(seen.has(key))return false;
     seen.add(key);
     return true;

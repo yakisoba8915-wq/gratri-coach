@@ -1,5 +1,5 @@
 import TrickCard from "./TrickCard";
-import { canUseTrick, isInitialFreeTrick } from "@/lib/accessControl";
+import { canUseTrick } from "@/lib/accessControl";
 import type { PlanType, Trick } from "@/lib/types";
 import type { SelectedTrickDisplayStance } from "@/lib/trickStance";
 
@@ -32,7 +32,7 @@ export default function TrickList({
           showUserData={showUserData}
           selectedStance={selectedStance}
           canUse={canUseTrick(trick, planType)}
-          editable={canEdit && !isInitialFreeTrick(trick)}
+          editable={canEdit}
           onEdit={onEdit}
         />
       ))}
