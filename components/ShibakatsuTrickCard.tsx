@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Link2, Lightbulb, Lock } from "lucide-react";
+import { AlertTriangle, Link2, Lightbulb, Lock, Pencil } from "lucide-react";
 import { useState } from "react";
 import PremiumLockedTrickModal from "./PremiumLockedTrickModal";
 import { formatTrickName } from "@/lib/trickDisplay";
@@ -8,26 +8,52 @@ import { selectedStanceLabels, trickStanceLabels } from "@/lib/trickStance";
 import type { Trick } from "@/lib/types";
 import type { SelectedTrickDisplayStance } from "@/lib/trickStance";
 
-export default function ShibakatsuTrickCard({ trick, selectedStance = "regular", canUse = true }: { trick: Trick; selectedStance?: SelectedTrickDisplayStance; canUse?: boolean }) {
+export default function ShibakatsuTrickCard({
+  trick,
+  selectedStance = "regular",
+  canUse = true,
+  editable = false,
+  onEdit,
+}: {
+  trick: Trick;
+  selectedStance?: SelectedTrickDisplayStance;
+  canUse?: boolean;
+  editable?: boolean;
+  onEdit?: (trick: Trick) => void;
+}) {
   const [premiumOpen, setPremiumOpen] = useState(false);
+
+  const editButton = editable && onEdit ? (
+    <button
+      type="button"
+      onClick={() => onEdit(trick)}
+      className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm transition active:scale-[.98]"
+    >
+      <Pencil size={13} />
+      編集
+    </button>
+  ) : null;
 
   if (!canUse) {
     return (
       <>
-        <button type="button" onClick={() => setPremiumOpen(true)} className="card w-full border-amber-100 bg-amber-50/45 text-left opacity-80 transition active:scale-[.99]">
-          <div className="flex items-center gap-3">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white text-amber-600">
-              <Lock size={19} />
+        <article className="card border-amber-100 bg-amber-50/45 opacity-80">
+          <button type="button" onClick={() => setPremiumOpen(true)} className="w-full text-left transition active:scale-[.99]">
+            <div className="flex items-center gap-3">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white text-amber-600">
+                <Lock size={19} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate font-black text-slate-800">{formatTrickName(trick.nameJa, selectedStance)}</h3>
+                <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-700">
+                  <Lock size={11} />
+                  Premium限定
+                </p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="truncate font-black text-slate-800">{formatTrickName(trick.nameJa, selectedStance)}</h3>
-              <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-700">
-                <Lock size={11} />
-                Premium限定
-              </p>
-            </div>
-          </div>
-        </button>
+          </button>
+          {editButton}
+        </article>
         <PremiumLockedTrickModal open={premiumOpen} onClose={() => setPremiumOpen(false)} />
       </>
     );
@@ -43,7 +69,7 @@ export default function ShibakatsuTrickCard({ trick, selectedStance = "regular",
           <h3 className="font-black">{formatTrickName(trick.nameJa, selectedStance)}</h3>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">{trick.category}</span>
-            <span className="inline-flex rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">対応 {trickStanceLabels[trick.stance ?? "both"]}</span>
+            <span className="inline-flex rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">対応：{trickStanceLabels[trick.stance ?? "both"]}</span>
             <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-600">{selectedStanceLabels[selectedStance]}</span>
           </div>
         </div>
@@ -68,6 +94,7 @@ export default function ShibakatsuTrickCard({ trick, selectedStance = "regular",
           <p className="mt-1 text-xs leading-5 text-slate-600">{trick.cautions}</p>
         </div>
       )}
+      {editButton}
     </article>
   );
 }

@@ -41,7 +41,7 @@ function normalizeTrickType(value: string | undefined): TrainingType | null {
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = (await request.json().catch(() => ({}))) as UpdateTrickBody;
-  const authorization = await authorizeTrickMutation(request, body.password, { allowPassword: false, requireLogin: true, requireManager: true });
+  const authorization = await authorizeTrickMutation(request, body.password, { allowPassword: true, requireLogin: true });
   if (authorization.error) return NextResponse.json({ error: authorization.error }, { status: authorization.status ?? 401 });
   const { adminClient } = authorization;
 

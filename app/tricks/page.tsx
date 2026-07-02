@@ -4,17 +4,18 @@ import Link from "next/link";
 import { GitBranch, Grid2X2, List, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import AddTrickModal from "@/components/AddTrickModal";
+import EditTrickModal from "@/components/EditTrickModal";
 import PageHeader from "@/components/PageHeader";
 import ShibakatsuTrickCard from "@/components/ShibakatsuTrickCard";
 import TrickList from "@/components/TrickList";
 import { useAuth } from "@/hooks/useAuth";
 import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
-import { canUseTrick } from "@/lib/accessControl";
+import { canUseTrick, isInitialFreeTrick } from "@/lib/accessControl";
 import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
 import { masteryStatuses } from "@/lib/types";
-import type { TrainingType } from "@/lib/types";
+import type { TrainingType, Trick } from "@/lib/types";
 
 export default function TricksPage() {
   const { user } = useAuth();
@@ -30,7 +31,9 @@ export default function TricksPage() {
   const [favorites, setFavorites] = useState(false);
   const [view, setView] = useState<"card" | "list">("card");
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [editingTrick, setEditingTrick] = useState<Trick | null>(null);
   const [created, setCreated] = useState(false);
+  const [updated, setUpdated] = useState(false);
 
   const typeTricks = useMemo(
     () => tricks.filter((trick) => (trick.trickType ?? "snow") === activeType),
@@ -77,6 +80,12 @@ export default function TricksPage() {
     window.setTimeout(() => setCreated(false), 2500);
   }
 
+  async function handleUpdated(): Promise<void> {
+    await refresh();
+    setUpdated(true);
+    window.setTimeout(() => setUpdated(false), 2500);
+  }
+
   const isShibakatsu = activeType === "shibakatsu";
   const planType = user ? profile?.planType ?? "free" : "free";
 
@@ -116,6 +125,7 @@ export default function TricksPage() {
       </div>
 
       {created && <p className="mb-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{isShibakatsu ? "シバカツ技を追加しました" : "技を追加しました"}</p>}
+      {updated && <p className="mb-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">トリックを更新しました</p>}
 
       <div className="relative mb-3">
         <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
@@ -169,7 +179,16 @@ export default function TricksPage() {
       {isShibakatsu ? (
         filtered.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            {filtered.map((trick) => <ShibakatsuTrickCard key={trick.id} trick={trick} selectedStance={selectedStance} canUse={canUseTrick(trick, planType)} />)}
+            {filtered.map((trick) => (
+              <ShibakatsuTrickCard
+                key={trick.id}
+                trick={trick}
+                selectedStance={selectedStance}
+                canUse={canUseTrick(trick, planType)}
+                editable={Boolean(user) && !isInitialFreeTrick(trick)}
+                onEdit={setEditingTrick}
+              />
+            ))}
           </div>
         ) : typeTricks.length === 0 ? (
           <div className="card py-12 text-center text-sm leading-6 text-slate-500">
@@ -180,7 +199,17 @@ export default function TricksPage() {
           <div className="card py-12 text-center text-sm text-slate-500">条件に合うシバカツトリックがありません。</div>
         )
       ) : (
-        <TrickList tricks={filtered} view={view} showUserData={Boolean(user)} selectedStance={selectedStance} planType={planType} />
+        <TrickList
+          tricks={filtered}
+          view={view}
+          showUserData={Boolean(user)}
+          selectedStance={selectedStance}
+          planType={planType}
+          canEdit={Boolean(user)}
+          onEdit={(trick) => {
+            if (!isInitialFreeTrick(trick)) setEditingTrick(trick);
+          }}
+        />
       )}
 
       <AddTrickModal
@@ -188,6 +217,12 @@ export default function TricksPage() {
         trickType={activeType}
         onClose={() => setAddModalOpen(false)}
         onCreated={handleCreated}
+      />
+      <EditTrickModal
+        open={Boolean(editingTrick)}
+        trick={editingTrick}
+        onClose={() => setEditingTrick(null)}
+        onUpdated={handleUpdated}
       />
     </main>
   );

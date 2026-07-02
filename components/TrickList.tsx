@@ -1,9 +1,41 @@
 import TrickCard from "./TrickCard";
-import { canUseTrick } from "@/lib/accessControl";
+import { canUseTrick, isInitialFreeTrick } from "@/lib/accessControl";
 import type { PlanType, Trick } from "@/lib/types";
 import type { SelectedTrickDisplayStance } from "@/lib/trickStance";
 
-export default function TrickList({ tricks, view, showUserData=true, selectedStance="regular", planType="free" }: { tricks:Trick[]; view:"card"|"list"; showUserData?:boolean; selectedStance?:SelectedTrickDisplayStance; planType?:PlanType }) {
+export default function TrickList({
+  tricks,
+  view,
+  showUserData = true,
+  selectedStance = "regular",
+  planType = "free",
+  canEdit = false,
+  onEdit,
+}: {
+  tricks: Trick[];
+  view: "card" | "list";
+  showUserData?: boolean;
+  selectedStance?: SelectedTrickDisplayStance;
+  planType?: PlanType;
+  canEdit?: boolean;
+  onEdit?: (trick: Trick) => void;
+}) {
   if (!tricks.length) return <div className="card py-12 text-center text-sm text-slate-500">条件に合うトリックがありません</div>;
-  return <div className={view === "card" ? "grid gap-3 sm:grid-cols-2" : "space-y-2"}>{tricks.map((trick) => <TrickCard key={trick.id} trick={trick} compact={view === "list"} showUserData={showUserData} selectedStance={selectedStance} canUse={canUseTrick(trick, planType)}/>)}</div>;
+
+  return (
+    <div className={view === "card" ? "grid gap-3 sm:grid-cols-2" : "space-y-2"}>
+      {tricks.map((trick) => (
+        <TrickCard
+          key={trick.id}
+          trick={trick}
+          compact={view === "list"}
+          showUserData={showUserData}
+          selectedStance={selectedStance}
+          canUse={canUseTrick(trick, planType)}
+          editable={canEdit && !isInitialFreeTrick(trick)}
+          onEdit={onEdit}
+        />
+      ))}
+    </div>
+  );
 }
