@@ -5,7 +5,6 @@ import TrickSkillTree from "@/components/TrickSkillTree";
 import { useAuth } from "@/hooks/useAuth";
 import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
-import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
 
 export default function TreePage() {
@@ -13,7 +12,7 @@ export default function TreePage() {
   const [storedTricks] = useSupabaseData(dataRepository.getTricks);
   const [profile] = useSupabaseData(dataRepository.getProfile);
   const [selectedStance, setSelectedStance] = useSelectedTrickStance();
-  const tricks = storedTricks ?? initialTricks;
+  const tricks = storedTricks ?? [];
   const planType = user ? profile?.planType ?? "free" : "free";
 
   return (
@@ -30,7 +29,11 @@ export default function TreePage() {
           グーフィー
         </button>
       </div>
-      <TrickSkillTree tricks={tricks} showStatus={Boolean(user)} selectedStance={selectedStance} planType={planType} />
+      {tricks.length > 0 ? (
+        <TrickSkillTree tricks={tricks} showStatus={Boolean(user)} selectedStance={selectedStance} planType={planType} />
+      ) : (
+        <div className="card py-12 text-center text-sm leading-6 text-slate-500">トリック情報を取得できませんでした。時間をおいて再度お試しください。</div>
+      )}
     </main>
   );
 }

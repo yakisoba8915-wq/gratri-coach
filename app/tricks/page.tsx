@@ -12,7 +12,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { canManageTricks, canUseTrick } from "@/lib/accessControl";
-import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
 import { masteryStatuses } from "@/lib/types";
 import type { TrainingType, Trick } from "@/lib/types";
@@ -21,7 +20,7 @@ export default function TricksPage() {
   const { user } = useAuth();
   const [stored, refresh] = useSupabaseData(dataRepository.getAllTricks);
   const [profile] = useSupabaseData(dataRepository.getProfile);
-  const tricks = stored ?? initialTricks;
+  const tricks = stored ?? [];
   const [activeType, setActiveType] = useState<TrainingType>("snow");
   const [selectedStance, setSelectedStance] = useSelectedTrickStance();
   const [query, setQuery] = useState("");
@@ -194,12 +193,15 @@ export default function TricksPage() {
         ) : typeTricks.length === 0 ? (
           <div className="card py-12 text-center text-sm leading-6 text-slate-500">
             まだシバカツ用トリックがありません。<br />
-            管理パスワードを持っている場合は追加できます。
+            Editor / Adminの場合は追加できます。
           </div>
         ) : (
           <div className="card py-12 text-center text-sm text-slate-500">条件に合うシバカツトリックがありません。</div>
         )
       ) : (
+        typeTricks.length === 0 ? (
+          <div className="card py-12 text-center text-sm leading-6 text-slate-500">トリック情報を取得できませんでした。時間をおいて再度お試しください。</div>
+        ) : (
         <TrickList
           tricks={filtered}
           view={view}
@@ -209,6 +211,7 @@ export default function TricksPage() {
           canEdit={canEditTricks}
           onEdit={setEditingTrick}
         />
+        )
       )}
 
       <AddTrickModal

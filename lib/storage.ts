@@ -1,7 +1,7 @@
 "use client";
 
 import { getCurrentUser } from "./auth";
-import { initialGoals,initialPracticeLogs,initialProfile,initialTricks } from "./mockData";
+import { initialGoals,initialPracticeLogs,initialProfile } from "./mockData";
 import { isSupabaseConfigured,supabase } from "./supabase";
 import { masteryStatuses } from "./types";
 import type { Goal,OffTrainingDayType,OffTrainingPlan,OffTrainingPlanItem,OffTrainingPreferences,PlanType,PracticeLog,Profile,Trick,TrickAccessType,TrickStance,Weekday,WeeklyOffTrainingDay } from "./types";
@@ -11,7 +11,7 @@ type DataKey=keyof typeof baseKeys;
 interface PracticeLogRow {id:string;user_id:string;date:string;training_type?:PracticeLog["trainingType"];resort_name:string;trick_id:string;success_count:number;fail_count:number;memo:string;self_analysis:string;weak_point:string;next_task:string;snow_condition:PracticeLog["snowCondition"];video_urls:string[];shibakatsu_menu?:string|null;duration_minutes?:number|null;reps?:number|null;sets?:number|null;}
 interface GoalRow {id:string;user_id:string;season:string;type:Goal["type"];trick_id:string;target_rate:number|null;completed:boolean;}
 interface ProfileRow {id:string;user_id:string;display_name:string;stance:Profile["stance"];avatar_url:string|null;avatar_path:string|null;plan_type?:PlanType|null;trick_preferences:Record<string,Pick<Trick,"masteryStatus"|"favorite">>|null;}
-interface PublicTrickRow {id:string;name:string;difficulty:number;category:string;takeoff_type:string;spin_direction:string;description:string;tips:string;prerequisite:string;trick_type:PracticeLog["trainingType"];stance?:TrickStance|null;access_type?:TrickAccessType|null;related_snow_trick:string;cautions:string;created_by:string|null;is_official:boolean;source_trick_id?:string|null;}
+interface PublicTrickRow {id:string;name:string;difficulty:number;category:string;takeoff_type:string;spin_direction:string;description:string;tips:string;prerequisite:string;trick_type:PracticeLog["trainingType"];stance?:TrickStance|null;access_type?:TrickAccessType|null;related_snow_trick:string;cautions:string;created_by:string|null;is_official:boolean;created_at?:string|null;sort_order?:number|null;}
 const emptyProfile:Profile={displayName:"",stance:"",avatarUrl:null,avatarPath:null,planType:"free"};
 
 const localKey=(key:DataKey,userId?:string)=>userId?`${baseKeys[key]}:${userId}`:baseKeys[key];
@@ -45,38 +45,28 @@ async function replaceGoals(rows:GoalRow[],userId:string):Promise<void>{if(!supa
 function normalizeTrickName(value:string):string{return value.trim().toLocaleLowerCase("ja-JP");}
 async function getPublicDatabaseTricks():Promise<Trick[]>{
   if(!supabase)return [];
-  const {data,error}=await supabase.from("tricks").select("id,name,difficulty,category,takeoff_type,spin_direction,description,tips,prerequisite,trick_type,stance,access_type,related_snow_trick,cautions,created_by,is_official,source_trick_id").order("created_at",{ascending:true});
+  const {data,error}=await supabase.from("tricks").select("id,name,difficulty,category,takeoff_type,spin_direction,description,tips,prerequisite,trick_type,stance,access_type,related_snow_trick,cautions,created_by,is_official,created_at,sort_order").order("sort_order",{ascending:true,nullsFirst:false}).order("difficulty",{ascending:true}).order("created_at",{ascending:true});
   if(error)throw error;
   const rows=(data??[]) as PublicTrickRow[];
   const nameToId=new Map<string,string>();
-  initialTricks.forEach((trick)=>nameToId.set(normalizeTrickName(trick.nameJa),trick.id));
   rows.forEach((row)=>nameToId.set(normalizeTrickName(row.name),row.id));
   return rows.map((row)=>{
     const prerequisiteNames=row.prerequisite.split(/[、,\n]/).map((item)=>item.trim()).filter(Boolean);
     const prerequisites=prerequisiteNames.map((name)=>nameToId.get(normalizeTrickName(name))).filter((id):id is string=>Boolean(id));
     return {
-      id:row.source_trick_id || row.id,nameJa:row.name,nameEn:row.name,category:row.category,difficulty:row.difficulty,
+      id:row.id,nameJa:row.name,nameEn:row.name,category:row.category,difficulty:row.difficulty,
       description:row.description,howTo:row.tips?[row.tips]:[],commonMistakes:[],prerequisites,
       relatedTrainings:[],referenceVideos:[],imageUrls:[],masteryStatus:masteryStatuses[0],favorite:false,
       takeoffType:row.takeoff_type,spinDirection:row.spin_direction,trickType:normalizeTrainingType(row.trick_type),stance:normalizeTrickStance(row.stance),accessType:normalizeTrickAccessType(row.access_type),
-      relatedSnowTrick:row.related_snow_trick??"",cautions:row.cautions??"",prerequisiteText:row.prerequisite??"",createdBy:row.created_by,isOfficial:row.is_official,sourceTrickId:row.source_trick_id??null,
+      relatedSnowTrick:row.related_snow_trick??"",cautions:row.cautions??"",prerequisiteText:row.prerequisite??"",createdBy:row.created_by,isOfficial:row.is_official,createdAt:row.created_at??null,sortOrder:row.sort_order??null,
     };
-  });
-}
-function mergeTricks(databaseTricks:Trick[]):Trick[]{
-  const seen=new Set<string>();
-  return [...databaseTricks,...initialTricks].filter((trick)=>{
-    const key=`${trick.trickType??"snow"}:${trick.id}`;
-    if(seen.has(key))return false;
-    seen.add(key);
-    return true;
   });
 }
 async function loadAllTricks():Promise<Trick[]>{
   const userId=await userIdOrNull();
-  let combined=initialTricks;
+  let combined:Trick[]=[];
   if(supabase){
-    try{combined=mergeTricks(await getPublicDatabaseTricks());}
+    try{combined=await getPublicDatabaseTricks();}
     catch(error){reportFallback("getPublicTricks",error);}
   }
   if(!userId||!supabase)return combined;
@@ -102,6 +92,6 @@ export const dataRepository={
   async getOffTrainingPlan():Promise<OffTrainingPlan|null>{const userId=await userIdOrNull();if(!userId||!supabase)return null;const fallback=normalizeStoredPlan(readLocal<unknown>("offPlan",null,userId));try{const {data,error}=await supabase.from("offtraining_plans").select("id,title,description,weekly_days,session_minutes,plan_json").eq("user_id",userId).maybeSingle();if(error)throw error;if(!data)return null;const plan:OffTrainingPlan={id:data.id,title:data.title,description:data.description,weeklyDays:data.weekly_days,sessionMinutes:data.session_minutes,weeklyPlan:normalizeWeeklyPlan(data.plan_json,data.weekly_days,data.session_minutes)};writeLocal("offPlan",plan,userId,false);return plan;}catch(error){reportFallback("getOffTrainingPlan",error);return fallback;}},
   async saveOffTrainingPlan(preferences:OffTrainingPreferences,plan:OffTrainingPlan):Promise<void>{const userId=await userIdOrNull();if(!userId||!supabase)return;writeLocal("offPreferences",preferences,userId);writeLocal("offPlan",plan,userId);try{const {error:preferencesError}=await supabase.from("offtraining_preferences").upsert({id:`off-preferences-${userId}`,user_id:userId,equipment:preferences.equipment,weekly_days:preferences.weeklyDays,session_minutes:preferences.sessionMinutes,location:preferences.location,gym_available:preferences.gymAvailable,focus_ability:preferences.focusAbility,target_trick_type:preferences.targetTrickType,exercise_habit:preferences.exerciseHabit,injury_concern:preferences.injuryConcern,intensity:preferences.intensity,updated_at:new Date().toISOString()},{onConflict:"user_id"});if(preferencesError)throw preferencesError;const {error:planError}=await supabase.from("offtraining_plans").upsert({id:plan.id,user_id:userId,title:plan.title,description:plan.description,weekly_days:plan.weeklyDays,session_minutes:plan.sessionMinutes,plan_json:plan.weeklyPlan,updated_at:new Date().toISOString()},{onConflict:"user_id"});if(planError)throw planError;}catch(error){reportFallback("saveOffTrainingPlan",error);}},
   async getProfile():Promise<Profile>{const userId=await userIdOrNull();if(!userId||!supabase)return readLocal("profile",initialProfile);const fallback=readLocal("profile",emptyProfile,userId);try{const {data,error}=await supabase.from("profiles").select("display_name,stance,avatar_url,avatar_path,plan_type").eq("user_id",userId).maybeSingle();if(error)throw error;if(!data)return emptyProfile;const planType=normalizePlanType(data.plan_type);const profile={displayName:data.display_name,stance:data.stance,avatarUrl:data.avatar_url??null,avatarPath:data.avatar_path??null,planType} as Profile;writeLocal("profile",profile,userId,false);return profile;}catch(error){reportFallback("getProfile",error);return fallback;}},
-  async saveProfile(profile:Profile):Promise<void>{if(!profile.displayName.trim()||!profile.stance)return;const userId=await userIdOrNull();writeLocal("profile",profile,userId??undefined);if(!userId||!supabase)return;try{const tricks=readLocal("tricks",initialTricks,userId);const {error}=await supabase.from("profiles").upsert({id:userId,user_id:userId,display_name:profile.displayName.trim(),stance:profile.stance,avatar_url:profile.avatarUrl??null,avatar_path:profile.avatarPath??null,trick_preferences:trickPreferences(tricks)},{onConflict:"user_id"});if(error)throw error;}catch(error){reportFallback("saveProfile",error);}},
+  async saveProfile(profile:Profile):Promise<void>{if(!profile.displayName.trim()||!profile.stance)return;const userId=await userIdOrNull();writeLocal("profile",profile,userId??undefined);if(!userId||!supabase)return;try{const tricks=readLocal("tricks",[] as Trick[],userId);const {error}=await supabase.from("profiles").upsert({id:userId,user_id:userId,display_name:profile.displayName.trim(),stance:profile.stance,avatar_url:profile.avatarUrl??null,avatar_path:profile.avatarPath??null,trick_preferences:trickPreferences(tricks)},{onConflict:"user_id"});if(error)throw error;}catch(error){reportFallback("saveProfile",error);}},
   async saveProfileAvatar(avatarUrl:string|null,avatarPath:string|null):Promise<void>{const userId=await userIdOrNull();if(!userId)return;const profile=readLocal("profile",emptyProfile,userId);const nextProfile={...profile,avatarUrl,avatarPath};writeLocal("profile",nextProfile,userId);if(!supabase)return;try{const {error}=await supabase.from("profiles").upsert({id:userId,user_id:userId,avatar_url:avatarUrl,avatar_path:avatarPath},{onConflict:"user_id"});if(error)throw error;}catch(error){reportFallback("saveProfileAvatar",error);}}
 };

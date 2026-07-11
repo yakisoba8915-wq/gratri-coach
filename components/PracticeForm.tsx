@@ -9,7 +9,6 @@ import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { canUseTrick } from "@/lib/accessControl";
 import { formatTrickName } from "@/lib/trickDisplay";
-import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
 import { snowConditions, type PracticeLog, type SnowCondition, type TrainingType } from "@/lib/types";
 import PracticeVideoUploader, { type PracticeVideoUploaderHandle } from "@/components/PracticeVideoUploader";
@@ -32,7 +31,7 @@ export default function PracticeForm() {
   const [profile] = useSupabaseData(dataRepository.getProfile);
   const [selectedStance] = useSelectedTrickStance();
   const planType = user ? profile?.planType ?? "free" : "free";
-  const allTricks = storedTricks ?? initialTricks;
+  const allTricks = storedTricks ?? [];
   const [logId] = useState(() => `log-${Date.now()}`);
 
   const [trainingType, setTrainingType] = useState<TrainingType>("snow");

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Circle, GitBranch, Lock } from "lucide-react";
 import { useState } from "react";
 import PremiumLockedTrickModal from "./PremiumLockedTrickModal";
-import { initialTricks } from "@/lib/mockData";
 import { canUseTrick } from "@/lib/accessControl";
 import { formatTrickName } from "@/lib/trickDisplay";
 import { selectedStanceLabels, trickStanceLabels } from "@/lib/trickStance";
@@ -38,10 +37,10 @@ const sections: TreeSection[] = [
     description: "まずは4方向の重心移動を身につけます。",
     tone: "from-cyan-400 to-sky-500",
     roots: [
-      { id: "back-nose-press" },
-      { id: "back-tail-press" },
-      { id: "front-nose-press" },
-      { id: "front-tail-press" },
+      { id: "バックノーズプレス" },
+      { id: "バックテールプレス" },
+      { id: "フロントノーズプレス" },
+      { id: "フロントテールプレス" },
     ],
   },
   {
@@ -51,10 +50,10 @@ const sections: TreeSection[] = [
     tone: "from-blue-400 to-indigo-500",
     roots: [
       {
-        id: "ollie",
+        id: "オーリー",
         children: [
-          { id: "ollie-bs-180", children: [{ id: "ollie-bs-360" }] },
-          { id: "ollie-fs-180", children: [{ id: "ollie-fs-360" }] },
+          { id: "オーリーBS180", children: [{ id: "オーリーBS360" }] },
+          { id: "オーリーFS180", children: [{ id: "オーリーFS360" }] },
         ],
       },
     ],
@@ -66,10 +65,10 @@ const sections: TreeSection[] = [
     tone: "from-violet-400 to-fuchsia-500",
     roots: [
       {
-        id: "nollie",
+        id: "ノーリー",
         children: [
-          { id: "nollie-bs-180", children: [{ id: "nollie-bs-360" }] },
-          { id: "nollie-fs-180", children: [{ id: "nollie-fs-360", children: [{ id: "fs-nollie-540" }] }] },
+          { id: "ノーリーBS180", children: [{ id: "ノーリーBS360" }] },
+          { id: "ノーリーFS180", children: [{ id: "ノーリーFS360", children: [{ id: "FSノーリー540" }] }] },
         ],
       },
     ],
@@ -80,16 +79,18 @@ const sections: TreeSection[] = [
     description: "プレスや弾きを組み合わせた発展技です。",
     tone: "from-amber-400 to-orange-500",
     roots: [
-      { id: "back-nose-press", children: [{ id: "back-nose-180" }] },
-      { id: "front-tail-press", children: [{ id: "front-tail-180" }] },
-      { id: "ollie", children: [{ id: "owen" }] },
-      { id: "nollie", children: [{ id: "sone" }] },
-      { id: "nollie-fs-360", children: [{ id: "andy" }] },
+      { id: "バックノーズプレス", children: [{ id: "バックノーズ180" }] },
+      { id: "フロントテールプレス", children: [{ id: "フロントテール180" }] },
+      { id: "オーリー", children: [{ id: "オーウェン" }] },
+      { id: "ノーリー", children: [{ id: "ソネ" }] },
+      { id: "ノーリーFS360", children: [{ id: "アンディ" }] },
     ],
   },
 ];
 
-const initialIds = new Set(initialTricks.map((trick) => trick.id));
+const staticTreeNames = new Set(sections.flatMap((section) => section.roots.flatMap(function collect(node): string[] {
+  return [node.id, ...(node.children ?? []).flatMap(collect)];
+})));
 
 const statusStyles: Record<MasteryStatus, string> = {
   未挑戦: "border-slate-200 bg-white",
@@ -103,10 +104,10 @@ const statusStyles: Record<MasteryStatus, string> = {
 function buildDbChildren(tricks: Trick[]): Map<string, Trick[]> {
   const result = new Map<string, Trick[]>();
   for (const trick of tricks) {
-    if (initialIds.has(trick.id) || (trick.trickType ?? "snow") !== "snow") continue;
-    const parentId = trick.prerequisites.find((id) => tricks.some((candidate) => candidate.id === id));
-    if (!parentId) continue;
-    result.set(parentId, [...(result.get(parentId) ?? []), trick]);
+    if (staticTreeNames.has(trick.nameJa) || (trick.trickType ?? "snow") !== "snow") continue;
+    const parent = tricks.find((candidate) => trick.prerequisites.includes(candidate.id));
+    if (!parent) continue;
+    result.set(parent.nameJa, [...(result.get(parent.nameJa) ?? []), trick]);
   }
   return result;
 }
@@ -180,7 +181,7 @@ function TreeBranch({
 
   const nextPath = new Set(path).add(definition.id);
   const staticChildren = definition.children ?? [];
-  const dynamicChildren = (dbChildren.get(definition.id) ?? []).map((child) => ({ id: child.id }));
+  const dynamicChildren = (dbChildren.get(definition.id) ?? []).map((child) => ({ id: child.nameJa }));
   const children = [...staticChildren, ...dynamicChildren].filter((child, index, list) => list.findIndex((item) => item.id === child.id) === index);
 
   return (
@@ -201,10 +202,10 @@ function TreeBranch({
 
 export default function TrickSkillTree({ tricks, showStatus = false, selectedStance = "regular", planType = "free" }: TrickSkillTreeProps) {
   const snowTricks = tricks.filter((trick) => (trick.trickType ?? "snow") === "snow");
-  const trickMap = new Map(snowTricks.map((trick) => [trick.id, trick]));
+  const trickMap = new Map(snowTricks.map((trick) => [trick.nameJa, trick]));
   const dbChildren = buildDbChildren(snowTricks);
-  const assignedChildIds = new Set(Array.from(dbChildren.values()).flat().map((child) => child.id));
-  const unresolved = snowTricks.filter((trick) => !initialIds.has(trick.id) && (trick.prerequisites.length === 0 || Boolean(trick.prerequisiteText?.trim())) && !assignedChildIds.has(trick.id));
+  const assignedChildNames = new Set(Array.from(dbChildren.values()).flat().map((child) => child.nameJa));
+  const unresolved = snowTricks.filter((trick) => !staticTreeNames.has(trick.nameJa) && (trick.prerequisites.length === 0 || Boolean(trick.prerequisiteText?.trim())) && !assignedChildNames.has(trick.nameJa));
 
   return (
     <div className="space-y-6">

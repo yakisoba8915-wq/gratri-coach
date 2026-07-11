@@ -9,7 +9,7 @@ import { dataRepository } from "@/lib/storage";
 import { supabase } from "@/lib/supabase";
 import type { TrainingType, Trick, TrickAccessType, TrickStance } from "@/lib/types";
 
-const snowCategories = ["プレス系", "オーリー系", "ノーリー系", "乗り系", "180系", "360系", "540系", "その他"] as const;
+const snowCategories = ["プレス基礎", "弾き基礎", "180系", "乗り系", "360系", "弾き系発展", "プレス発展", "高難度", "プレス系", "オーリー系", "ノーリー系", "540系", "その他"] as const;
 const shibakatsuCategories = ["プレス練習", "弾き練習", "回転練習", "バランス練習", "乗り練習", "連続動作", "その他"] as const;
 const takeoffTypes = ["なし", "オーリー", "ノーリー", "プレス", "乗り", "その他"] as const;
 const spinDirections = ["なし", "FS", "BS"] as const;

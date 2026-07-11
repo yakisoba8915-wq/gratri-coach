@@ -1,7 +1,4 @@
-import { initialTricks } from "./mockData";
 import type { AiFeatureType, PlanType, Trick } from "./types";
-
-const initialFreeTrickIds = new Set(initialTricks.map((trick) => trick.id));
 
 export function isPremiumPlan(planType: PlanType | null | undefined): boolean {
   return planType === "premium" || planType === "admin" || planType === "beta_tester" || planType === "editor";
@@ -51,7 +48,7 @@ export function canUsePremiumTricks(planType: PlanType | null | undefined): bool
 }
 
 export function isInitialFreeTrick(trick: Trick): boolean {
-  return initialFreeTrickIds.has(trick.id);
+  return Boolean(trick.isOfficial && (trick.trickType ?? "snow") === "snow");
 }
 
 export function canUseTrick(trick: Trick, planType: PlanType | null | undefined): boolean {

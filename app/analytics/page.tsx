@@ -9,7 +9,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { generateGrowthAnalyticsSummary } from "@/lib/analytics";
-import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
 import type { SeasonMode } from "@/lib/types";
 
@@ -20,7 +19,7 @@ export default function AnalyticsPage() {
   const [logs] = useSupabaseData(dataRepository.getLogs);
   const [tricks] = useSupabaseData(dataRepository.getAllTricks);
   const currentLogs = user ? (logs ?? []) : [];
-  const currentTricks = tricks ?? initialTricks;
+  const currentTricks = tricks ?? [];
   const summary = generateGrowthAnalyticsSummary({ logs: currentLogs, tricks: currentTricks, seasonMode });
 
   if (loading) {

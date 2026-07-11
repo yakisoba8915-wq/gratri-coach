@@ -15,7 +15,6 @@ import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { generateAdvice } from "@/lib/aiAdvisor";
 import { canUseTrick } from "@/lib/accessControl";
 import { formatTrickName } from "@/lib/trickDisplay";
-import { initialTricks } from "@/lib/mockData";
 import { getRecommendations, getTrendingTrick } from "@/lib/recommendations";
 import { dataRepository } from "@/lib/storage";
 import { getPracticeVideosForCurrentUser } from "@/lib/videoStorage";
@@ -38,7 +37,7 @@ export default function HomePage() {
   const [profile] = useSupabaseData(dataRepository.getProfile);
   const [offTrainingPlan] = useSupabaseData(dataRepository.getOffTrainingPlan);
   const [practiceVideos] = useSupabaseData(getPracticeVideosForCurrentUser);
-  const currentTricks = tricks ?? initialTricks;
+  const currentTricks = tricks ?? [];
   const analyticsTricks = allTricks ?? currentTricks;
   const planType = user ? profile?.planType ?? "free" : "free";
   const usableTricks = currentTricks.filter((trick) => canUseTrick(trick, planType));

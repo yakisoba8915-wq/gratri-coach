@@ -12,7 +12,7 @@ import { useSupabaseData } from "@/hooks/useSupabaseData";
 import { canManageTricks, canUseTrick } from "@/lib/accessControl";
 import { calculateTrickRate } from "@/lib/calculations";
 import { formatTrickName } from "@/lib/trickDisplay";
-import { initialTricks, trainings } from "@/lib/mockData";
+import { trainings } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
 import { masteryStatuses } from "@/lib/types";
 
@@ -28,7 +28,7 @@ export default function TrickDetailPage({ params }: { params: Promise<{ id: stri
   const [updated, setUpdated] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
-  const tricks = storedTricks ?? initialTricks;
+  const tricks = storedTricks ?? [];
   const logs = user ? (storedLogs ?? []) : [];
   const trick = tricks.find((item) => item.id === id);
 

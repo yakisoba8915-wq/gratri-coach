@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { initialTricks } from "@/lib/mockData";
 import { authorizeTrickMutation } from "@/lib/trickManagementAuth";
 import type { TrainingType, TrickAccessType, TrickStance } from "@/lib/types";
 
@@ -26,10 +25,6 @@ interface CreateTrickBody {
   relatedSnowTrick?: string;
   cautions?: string;
   password?: string;
-}
-
-function normalized(value: string): string {
-  return value.trim().toLocaleLowerCase("ja-JP");
 }
 
 export async function POST(request: Request) {
@@ -70,10 +65,6 @@ export async function POST(request: Request) {
     (trickType === "snow" && !spinDirections.includes(spinDirection as (typeof spinDirections)[number]))
   ) {
     return NextResponse.json({ error: "入力内容を確認してください。" }, { status: 400 });
-  }
-
-  if (trickType === "snow" && initialTricks.some((trick) => normalized(trick.nameJa) === normalized(name))) {
-    return NextResponse.json({ error: "同じ種類に同名の技がすでに登録されています。" }, { status: 409 });
   }
 
   const { data: existing, error: duplicateCheckError } = await adminClient

@@ -8,7 +8,6 @@ import PracticeLogCard from "@/components/PracticeLogCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useSelectedTrickStance } from "@/hooks/useSelectedTrickStance";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
-import { initialTricks } from "@/lib/mockData";
 import { dataRepository } from "@/lib/storage";
 import { canUseTrick } from "@/lib/accessControl";
 import { formatTrickName } from "@/lib/trickDisplay";
@@ -26,7 +25,7 @@ export default function PracticePage() {
   const [profile] = useSupabaseData(dataRepository.getProfile);
   const [selectedStance] = useSelectedTrickStance();
   const logs = user ? (storedLogs ?? []) : [];
-  const tricks = storedTricks ?? initialTricks;
+  const tricks = storedTricks ?? [];
   const planType = user ? profile?.planType ?? "free" : "free";
   const selectableTricks = tricks.filter((trick) => canUseTrick(trick, planType));
   const [trickId, setTrickId] = useState("all");

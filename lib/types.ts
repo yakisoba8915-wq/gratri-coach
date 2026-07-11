@@ -15,8 +15,8 @@ export interface Trick {
   description: string; howTo: string[]; commonMistakes: string[]; prerequisites: string[];
   relatedTrainings: string[]; referenceVideos: string[]; imageUrls: string[];
   masteryStatus: MasteryStatus; favorite: boolean;
-  takeoffType?: string; spinDirection?: string; createdBy?: string | null; isOfficial?: boolean;
-  trickType?: TrainingType; stance?: TrickStance; accessType?: TrickAccessType; relatedSnowTrick?: string; cautions?: string; prerequisiteText?: string; sourceTrickId?: string | null;
+  takeoffType?: string; spinDirection?: string; createdBy?: string | null; isOfficial?: boolean; createdAt?: string | null; sortOrder?: number | null;
+  trickType?: TrainingType; stance?: TrickStance; accessType?: TrickAccessType; relatedSnowTrick?: string; cautions?: string; prerequisiteText?: string;
 }
 export type TrainingType = "snow" | "shibakatsu";
 export interface PracticeLog {
